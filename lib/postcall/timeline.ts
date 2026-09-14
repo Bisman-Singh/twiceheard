@@ -52,6 +52,8 @@ export type CallEvent =
       at: number | null;
       durationMs: number | null;
       failed: boolean;
+      /** What the tool returned to the model, as a JSON string. */
+      result?: string | null;
     }
   | { kind: "agent"; text: string; interrupted: boolean };
 
@@ -82,6 +84,7 @@ function toolEvent(call: z.infer<typeof toolCallSchema>): CallEvent {
     at: call.dispatched_at_ms ?? null,
     durationMs: call.duration_ms ?? null,
     failed: Boolean(call.is_error || call.timed_out),
+    result: call.result ?? null,
   };
 }
 

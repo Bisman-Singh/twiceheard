@@ -1,0 +1,157 @@
+import type { Clinic } from "@/lib/clinic/config";
+import type { Chart } from "@/lib/intake/chart";
+import { FIELDS, FIELD_IDS, type FieldId } from "@/lib/intake/fields";
+import { gradeChart, type Verification } from "@/lib/intake/grade";
+import { percentile, type CallRecord, type CallStore } from "@/lib/postcall/record";
+import { replayChart } from "@/lib/postcall/replay";
+import {
+  callEvents,
+  firstAudioLatencies,
+  timelineSchema,
+  type CallEvent,
+} from "@/lib/postcall/timeline";
+import { describeSlotId } from "@/lib/scheduling/slots";
+import { verifyValue, type Utterance } from "@/lib/verify/hearing";
+import type { SecondHearingClient } from "@/lib/verify/transcribe";
+import type { SessionDetail } from "@/lib/voice-agent/client";
+import { keyterms } from "@/lib/voice-agent/prompt";
+
+/**
+ * From a finished session to the record the clinic sees.
+ *
+ * The session timeline is replayed into a chart that only accepts what the
+ * call proves; the recording is heard a second time to score each value; the
+ * two are combined into grades. If the second hearing is unavailable the
+ * record still gets written, with grades from the conversation alone and a
+ * flag that says so, because a late chart is worse for a clinic than an
+ * honestly partial one.
+ */
+
+export interface PostCallDeps {
+  getSession: (sessionId: string) => Promise<SessionDetail>;
+  clinicForAgent: (agentId: string | null) => Clinic | null;
+  fetchJson: (url: string) => Promise<unknown>;
+  hearing: SecondHearingClient;
+  calls: CallStore;
+  now: () => Date;
+}
+
+/** The platform has not attached the timeline yet; worth retrying shortly. */
+export class ArtifactsNotReady extends Error {
+  constructor() {
+    super("session artifacts are not ready");
+    this.name = "ArtifactsNotReady";
+  }
+}
+
+export async function processSession(
+  sessionId: string,
+  deps: PostCallDeps,
+): Promise<CallRecord | null> {
+  const session = await deps.getSession(sessionId);
+  const clinic = deps.clinicForAgent(session.agent_id);
+  if (!clinic) return null;
+  const artifact = (type: "audio" | "timeline") =>
+    session.artifacts.find((item) => item.type === type)?.url;
+  const timelineUrl = artifact("timeline");
+  if (!timelineUrl) throw new ArtifactsNotReady();
+
+  const timeline = timelineSchema.parse(await deps.fetchJson(timelineUrl));
+  const events = callEvents(timeline);
+  const replay = replayChart(events, { country: clinic.country });
+  const { verifications, hearing } = await secondHearing(
+    replay.chart,
+    artifact("audio"),
+    clinic,
+    deps,
+  );
+  const firstAudioMs = firstAudioLatencies(timeline);
+  const toolEvents = events.filter(
+    (event): event is Extract<CallEvent, { kind: "tool" }> => event.kind === "tool",
+  );
+  const durations = toolEvents
+    .map((event) => event.durationMs)
+    .filter((ms): ms is number => ms !== null);
+
+  const record: CallRecord = {
+    sessionId: session.id,
+    clinicId: clinic.id,
+    processedAt: deps.now().getTime(),
+    startedAt: timeline.started_at_unix_ms ?? null,
+    durationSeconds: session.duration_seconds ?? null,
+    chart: replay.chart,
+    grade: gradeChart(replay.chart, verifications),
+    issues: replay.issues,
+    verifications,
+    hearing,
+    booking: bookingFrom(toolEvents, clinic),
+    escalation: escalationFrom(toolEvents),
+    latency: {
+      firstAudioMs,
+      p50: percentile(firstAudioMs, 0.5),
+      p95: percentile(firstAudioMs, 0.95),
+    },
+    tools: {
+      calls: toolEvents.length,
+      failures: toolEvents.filter((event) => event.failed).length,
+      p50Ms: percentile(durations, 0.5),
+    },
+  };
+  await deps.calls.save(record);
+  return record;
+}
+
+async function secondHearing(
+  chart: Chart,
+  audioUrl: string | undefined,
+  clinic: Clinic,
+  deps: PostCallDeps,
+) {
+  if (!audioUrl) return { verifications: {}, hearing: "unavailable" as const };
+  try {
+    const heard = await deps.hearing.transcribe(audioUrl, keyterms(clinic));
+    return { verifications: verifyChart(chart, heard.caller), hearing: "verified" as const };
+  } catch {
+    return { verifications: {}, hearing: "unavailable" as const };
+  }
+}
+
+export function verifyChart(
+  chart: Chart,
+  caller: readonly Utterance[],
+): Partial<Record<FieldId, Verification>> {
+  const result: Partial<Record<FieldId, Verification>> = {};
+  for (const id of FIELD_IDS) {
+    const value = chart[id].value;
+    const verification = value === null ? null : verifyValue(FIELDS[id], value, caller);
+    if (verification) result[id] = verification;
+  }
+  return result;
+}
+
+function succeeded(event: Extract<CallEvent, { kind: "tool" }>): boolean {
+  if (event.failed || !event.result) return false;
+  try {
+    return (JSON.parse(event.result) as { ok?: unknown }).ok === true;
+  } catch {
+    return false;
+  }
+}
+
+function bookingFrom(events: ReadonlyArray<Extract<CallEvent, { kind: "tool" }>>, clinic: Clinic) {
+  const booked = events
+    .filter((event) => event.name === "book_appointment" && succeeded(event))
+    .at(-1);
+  const slot =
+    booked && typeof booked.args.slot_id === "string"
+      ? describeSlotId(clinic, booked.args.slot_id)
+      : null;
+  return slot ? { slotId: slot.id, spoken: slot.spoken } : null;
+}
+
+function escalationFrom(events: ReadonlyArray<Extract<CallEvent, { kind: "tool" }>>) {
+  const raised = events.filter((event) => event.name === "escalate" && succeeded(event)).at(-1);
+  if (!raised) return null;
+  const urgent = raised.args.urgent === true || raised.args.urgent === "true";
+  return { reason: String(raised.args.reason ?? "").slice(0, 300), urgent };
+}

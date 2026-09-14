@@ -153,20 +153,34 @@ function slotsOnDay(clinic: Clinic, date: string, earliest: number, query: SlotQ
   return slots;
 }
 
-/** The slot an id names, if the clinic really offers it at that time. */
-export function slotFromId(clinic: Clinic, id: string, now: Date): Slot | null {
+/** What a slot id names, whether or not it is still open: for records written after the call. */
+export function describeSlotId(clinic: Clinic, id: string): Slot | null {
   const match = /^([a-z0-9-]+)_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})$/.exec(id.trim());
   if (!match) return null;
   const [, doctorId, year, month, day, hour, mins] = match as unknown as string[];
+  const doctor = clinic.doctors.find((candidate) => candidate.id === doctorId);
+  if (!doctor) return null;
   const date = `${year}-${month}-${day}`;
   const minute = Number(hour) * 60 + Number(mins);
+  return {
+    id: slotId(doctor.id, date, minute),
+    doctorId: doctor.id,
+    start: `${date}T${toClock(minute)}`,
+    spoken: `${spokenDay(date)} at ${spokenTime(minute)} with ${doctor.name}`,
+  };
+}
+
+/** The slot an id names, if the clinic really offers it at that time. */
+export function slotFromId(clinic: Clinic, id: string, now: Date): Slot | null {
+  const named = describeSlotId(clinic, id);
+  if (!named) return null;
   const offered = openSlots(clinic, {
     now,
     partOfDay: "any",
-    date,
-    doctorId,
+    date: named.start.slice(0, 10),
+    doctorId: named.doctorId,
     taken: new Set(),
     limit: 1_000,
   });
-  return offered.find((slot) => slot.start === `${date}T${toClock(minute)}`) ?? null;
+  return offered.find((slot) => slot.id === named.id) ?? null;
 }
