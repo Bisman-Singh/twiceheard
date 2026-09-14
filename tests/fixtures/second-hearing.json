@@ -1,0 +1,605 @@
+{
+  "note": "Words from a real Universal-3.5 Pro multichannel transcript of a synthetic test call (fictional caller). Channel 1 is the caller, 2 the agent.",
+  "utterances": [
+    {
+      "channel": "2",
+      "text": "Hello, you've reached the clinic. May I have your full name, please?",
+      "words": [
+        {
+          "text": "Hello,",
+          "confidence": 0.9952,
+          "start": 720,
+          "end": 1200
+        },
+        {
+          "text": "you've",
+          "confidence": 0.9999,
+          "start": 1200,
+          "end": 1440
+        },
+        {
+          "text": "reached",
+          "confidence": 1.0,
+          "start": 1440,
+          "end": 1520
+        },
+        {
+          "text": "the",
+          "confidence": 0.9968,
+          "start": 1680,
+          "end": 1760
+        },
+        {
+          "text": "clinic.",
+          "confidence": 0.9957,
+          "start": 1840,
+          "end": 2640
+        },
+        {
+          "text": "May",
+          "confidence": 0.9997,
+          "start": 2880,
+          "end": 2960
+        },
+        {
+          "text": "I",
+          "confidence": 1.0,
+          "start": 3040,
+          "end": 3120
+        },
+        {
+          "text": "have",
+          "confidence": 1.0,
+          "start": 3200,
+          "end": 3280
+        },
+        {
+          "text": "your",
+          "confidence": 1.0,
+          "start": 3360,
+          "end": 3440
+        },
+        {
+          "text": "full",
+          "confidence": 1.0,
+          "start": 3600,
+          "end": 3680
+        },
+        {
+          "text": "name,",
+          "confidence": 0.8871,
+          "start": 3760,
+          "end": 4000
+        },
+        {
+          "text": "please?",
+          "confidence": 0.9999,
+          "start": 4080,
+          "end": 4160
+        }
+      ]
+    },
+    {
+      "channel": "1",
+      "text": "Hi, I want to book an appointment. My name is Arjun Mehta.",
+      "words": [
+        {
+          "text": "Hi,",
+          "confidence": 0.9914,
+          "start": 5840,
+          "end": 6240
+        },
+        {
+          "text": "I",
+          "confidence": 1.0,
+          "start": 6400,
+          "end": 6480
+        },
+        {
+          "text": "want",
+          "confidence": 0.9993,
+          "start": 6560,
+          "end": 6640
+        },
+        {
+          "text": "to",
+          "confidence": 1.0,
+          "start": 6960,
+          "end": 7040
+        },
+        {
+          "text": "book",
+          "confidence": 0.9999,
+          "start": 7120,
+          "end": 7200
+        },
+        {
+          "text": "an",
+          "confidence": 0.9999,
+          "start": 7360,
+          "end": 7440
+        },
+        {
+          "text": "appointment.",
+          "confidence": 0.9996,
+          "start": 7680,
+          "end": 8400
+        },
+        {
+          "text": "My",
+          "confidence": 0.9999,
+          "start": 8640,
+          "end": 8720
+        },
+        {
+          "text": "name",
+          "confidence": 0.9999,
+          "start": 8880,
+          "end": 8960
+        },
+        {
+          "text": "is",
+          "confidence": 1.0,
+          "start": 9120,
+          "end": 9200
+        },
+        {
+          "text": "Arjun",
+          "confidence": 0.9999,
+          "start": 9280,
+          "end": 9600
+        },
+        {
+          "text": "Mehta.",
+          "confidence": 0.9975,
+          "start": 9760,
+          "end": 10760
+        }
+      ]
+    },
+    {
+      "channel": "2",
+      "text": "I have your name as Arjun Mehta. Is that right?",
+      "words": [
+        {
+          "text": "I",
+          "confidence": 0.9964,
+          "start": 16960,
+          "end": 17040
+        },
+        {
+          "text": "have",
+          "confidence": 0.9999,
+          "start": 17120,
+          "end": 17200
+        },
+        {
+          "text": "your",
+          "confidence": 0.9998,
+          "start": 17280,
+          "end": 17440
+        },
+        {
+          "text": "name",
+          "confidence": 0.9999,
+          "start": 17520,
+          "end": 17600
+        },
+        {
+          "text": "as",
+          "confidence": 0.9997,
+          "start": 17680,
+          "end": 17760
+        },
+        {
+          "text": "Arjun",
+          "confidence": 0.9998,
+          "start": 17920,
+          "end": 18160
+        },
+        {
+          "text": "Mehta.",
+          "confidence": 0.9966,
+          "start": 18240,
+          "end": 19040
+        },
+        {
+          "text": "Is",
+          "confidence": 0.9998,
+          "start": 19200,
+          "end": 19360
+        },
+        {
+          "text": "that",
+          "confidence": 0.9999,
+          "start": 19360,
+          "end": 19440
+        },
+        {
+          "text": "right?",
+          "confidence": 0.9997,
+          "start": 19600,
+          "end": 20600
+        }
+      ]
+    },
+    {
+      "channel": "1",
+      "text": "Yes, that's correct.",
+      "words": [
+        {
+          "text": "Yes,",
+          "confidence": 0.9982,
+          "start": 21200,
+          "end": 21680
+        },
+        {
+          "text": "that's",
+          "confidence": 0.9999,
+          "start": 21840,
+          "end": 22160
+        },
+        {
+          "text": "correct.",
+          "confidence": 0.9984,
+          "start": 22320,
+          "end": 23320
+        }
+      ]
+    },
+    {
+      "channel": "2",
+      "text": "Thank you. And what is your date of birth?",
+      "words": [
+        {
+          "text": "Thank",
+          "confidence": 0.9977,
+          "start": 27050,
+          "end": 27130
+        },
+        {
+          "text": "you.",
+          "confidence": 0.9925,
+          "start": 27210,
+          "end": 28090
+        },
+        {
+          "text": "And",
+          "confidence": 0.9998,
+          "start": 28250,
+          "end": 28330
+        },
+        {
+          "text": "what",
+          "confidence": 0.999,
+          "start": 28490,
+          "end": 28570
+        },
+        {
+          "text": "is",
+          "confidence": 0.9998,
+          "start": 28650,
+          "end": 28730
+        },
+        {
+          "text": "your",
+          "confidence": 1.0,
+          "start": 28810,
+          "end": 28890
+        },
+        {
+          "text": "date",
+          "confidence": 0.9998,
+          "start": 29050,
+          "end": 29130
+        },
+        {
+          "text": "of",
+          "confidence": 1.0,
+          "start": 29290,
+          "end": 29370
+        },
+        {
+          "text": "birth?",
+          "confidence": 0.9999,
+          "start": 29530,
+          "end": 29610
+        }
+      ]
+    },
+    {
+      "channel": "1",
+      "text": "My date of birth is the 12th of March, 1990.",
+      "words": [
+        {
+          "text": "My",
+          "confidence": 0.9969,
+          "start": 31130,
+          "end": 31210
+        },
+        {
+          "text": "date",
+          "confidence": 0.9999,
+          "start": 31370,
+          "end": 31450
+        },
+        {
+          "text": "of",
+          "confidence": 1.0,
+          "start": 31690,
+          "end": 31770
+        },
+        {
+          "text": "birth",
+          "confidence": 1.0,
+          "start": 31930,
+          "end": 32010
+        },
+        {
+          "text": "is",
+          "confidence": 0.9999,
+          "start": 32250,
+          "end": 32330
+        },
+        {
+          "text": "the",
+          "confidence": 0.9958,
+          "start": 32410,
+          "end": 32490
+        },
+        {
+          "text": "12th",
+          "confidence": 0.9999,
+          "start": 32650,
+          "end": 32970
+        },
+        {
+          "text": "of",
+          "confidence": 1.0,
+          "start": 33050,
+          "end": 33130
+        },
+        {
+          "text": "March,",
+          "confidence": 0.9997,
+          "start": 33290,
+          "end": 33370
+        },
+        {
+          "text": "1990.",
+          "confidence": 0.9992,
+          "start": 34570,
+          "end": 34650
+        }
+      ]
+    },
+    {
+      "channel": "2",
+      "text": "I have your date of birth as the 12th of March, 1990. Is that right?",
+      "words": [
+        {
+          "text": "I",
+          "confidence": 0.9976,
+          "start": 40890,
+          "end": 40970
+        },
+        {
+          "text": "have",
+          "confidence": 0.9999,
+          "start": 41050,
+          "end": 41130
+        },
+        {
+          "text": "your",
+          "confidence": 0.9999,
+          "start": 41210,
+          "end": 41290
+        },
+        {
+          "text": "date",
+          "confidence": 0.9999,
+          "start": 41450,
+          "end": 41530
+        },
+        {
+          "text": "of",
+          "confidence": 1.0,
+          "start": 41610,
+          "end": 41690
+        },
+        {
+          "text": "birth",
+          "confidence": 1.0,
+          "start": 41850,
+          "end": 41930
+        },
+        {
+          "text": "as",
+          "confidence": 0.9999,
+          "start": 42250,
+          "end": 42330
+        },
+        {
+          "text": "the",
+          "confidence": 0.9937,
+          "start": 42410,
+          "end": 42490
+        },
+        {
+          "text": "12th",
+          "confidence": 1.0,
+          "start": 42570,
+          "end": 42810
+        },
+        {
+          "text": "of",
+          "confidence": 1.0,
+          "start": 42890,
+          "end": 42970
+        },
+        {
+          "text": "March,",
+          "confidence": 0.9724,
+          "start": 43050,
+          "end": 43130
+        },
+        {
+          "text": "1990.",
+          "confidence": 0.9993,
+          "start": 43770,
+          "end": 44650
+        },
+        {
+          "text": "Is",
+          "confidence": 0.9999,
+          "start": 44810,
+          "end": 44970
+        },
+        {
+          "text": "that",
+          "confidence": 1.0,
+          "start": 44970,
+          "end": 45050
+        },
+        {
+          "text": "right?",
+          "confidence": 0.9999,
+          "start": 45210,
+          "end": 46210
+        }
+      ]
+    },
+    {
+      "channel": "1",
+      "text": "Yes.",
+      "words": [
+        {
+          "text": "Yes.",
+          "confidence": 0.9928,
+          "start": 46810,
+          "end": 47810
+        }
+      ]
+    },
+    {
+      "channel": "2",
+      "text": "Is there anything else I can help you with today?",
+      "words": [
+        {
+          "text": "Is",
+          "confidence": 0.9984,
+          "start": 51700,
+          "end": 51860
+        },
+        {
+          "text": "there",
+          "confidence": 1.0,
+          "start": 51860,
+          "end": 51940
+        },
+        {
+          "text": "anything",
+          "confidence": 1.0,
+          "start": 52020,
+          "end": 52100
+        },
+        {
+          "text": "else",
+          "confidence": 1.0,
+          "start": 52420,
+          "end": 52500
+        },
+        {
+          "text": "I",
+          "confidence": 0.9997,
+          "start": 52660,
+          "end": 52740
+        },
+        {
+          "text": "can",
+          "confidence": 1.0,
+          "start": 52740,
+          "end": 52820
+        },
+        {
+          "text": "help",
+          "confidence": 1.0,
+          "start": 52900,
+          "end": 53060
+        },
+        {
+          "text": "you",
+          "confidence": 1.0,
+          "start": 53140,
+          "end": 53220
+        },
+        {
+          "text": "with",
+          "confidence": 1.0,
+          "start": 53300,
+          "end": 53380
+        },
+        {
+          "text": "today?",
+          "confidence": 0.9999,
+          "start": 53620,
+          "end": 53700
+        }
+      ]
+    },
+    {
+      "channel": "1",
+      "text": "No, that's all. Thank you. Bye.",
+      "words": [
+        {
+          "text": "No,",
+          "confidence": 0.9948,
+          "start": 55220,
+          "end": 55620
+        },
+        {
+          "text": "that's",
+          "confidence": 0.9996,
+          "start": 55780,
+          "end": 56100
+        },
+        {
+          "text": "all.",
+          "confidence": 0.9633,
+          "start": 56180,
+          "end": 56260
+        },
+        {
+          "text": "Thank",
+          "confidence": 0.9999,
+          "start": 56740,
+          "end": 56820
+        },
+        {
+          "text": "you.",
+          "confidence": 0.951,
+          "start": 56980,
+          "end": 57380
+        },
+        {
+          "text": "Bye.",
+          "confidence": 0.9742,
+          "start": 57620,
+          "end": 57700
+        }
+      ]
+    },
+    {
+      "channel": "2",
+      "text": "Goodbye.",
+      "words": [
+        {
+          "text": "Goodbye.",
+          "confidence": 0.9784,
+          "start": 59300,
+          "end": 59540
+        }
+      ]
+    }
+  ]
+}
