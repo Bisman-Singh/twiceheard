@@ -42,7 +42,7 @@ export function createSharedRateLimiter(
     new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(limit, `${Math.round(windowMs / 1000)} s`),
-      prefix: "clausesaathi:ratelimit",
+      prefix: "earshot:ratelimit",
       analytics: false,
     }),
   );
