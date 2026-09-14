@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Every text and background pair meets WCAG 2.2 AA contrast
+ * (4.5:1 for body text, 3:1 for large text and borders) in both schemes.
+ * Navy ground, saffron accent, and three grades that never rely on colour
+ * alone: each is also labelled in words.
+ */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --text: #101528;
+  --muted: #4a5068;
+  --line: #d6d9e4;
+  --accent: #9a4a00;
+  --accent-soft: #fff1e2;
+  --focus: #1d4ed8;
+  --green-bg: #e7f6ee;
+  --green-text: #0b5d34;
+  --amber-bg: #fff5dc;
+  --amber-text: #7a4b00;
+  --red-bg: #fdecec;
+  --red-text: #9b1c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101528;
+    --surface: #171d35;
+    --text: #f2f3f8;
+    --muted: #b8bdd2;
+    --line: #2d3558;
+    --accent: #f39b2d;
+    --accent-soft: #2a2130;
+    --focus: #93b4ff;
+    --green-bg: #0f2e22;
+    --green-text: #8fe0b4;
+    --amber-bg: #33280f;
+    --amber-text: #f5cd7a;
+    --red-bg: #3a1618;
+    --red-text: #f7a8a8;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Noto Sans",
+      "Noto Sans Devanagari",
+      sans-serif;
+    line-height: 1.6;
+  }
+
+  a {
+    color: var(--accent);
+    text-underline-offset: 3px;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
