@@ -1,0 +1,199 @@
+{
+  "note": "Timeline of a real synthetic test call on the Voice Agent API (fictional caller), trimmed to the fields Earshot reads. Tools were client-side in that run.",
+  "session_id": "sess_fixture",
+  "started_at_unix_ms": 1789387265442,
+  "turns": [
+    {
+      "turn_id": "resp_236be3bfb7c44bc1a32e022e647359a1",
+      "status": "completed",
+      "trigger": "greeting",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": "Hello, you've reached the clinic. May I have your full name, please?",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": 356,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "resp_86da268ee6654e43a2725c6771ecfe49",
+      "status": "completed",
+      "trigger": "user_speech",
+      "user_transcript": "Hi, I want to book an appointment. My name is Arjun Mehta.",
+      "user_speech_ended_at_ms": 1789387277148,
+      "user_confidence": 1.0,
+      "agent_text": null,
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": [
+        {
+          "call_id": "chatcmpl-tool-a910042dc225b4ff",
+          "name": "save_field",
+          "arguments": {
+            "field": "full_name",
+            "status": "heard",
+            "value": "Arjun Mehta"
+          },
+          "result": "{\"ok\":true,\"readback\":\"I have your name as Arjun Mehta. Is that right?\"}",
+          "dispatched_at_ms": 1789387278997,
+          "duration_ms": 2454,
+          "is_error": false,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "turn_id": "resp_4471c13946c6442d804d58673af144d6",
+      "status": "completed",
+      "trigger": "tool_result",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": "I have your name as Arjun Mehta. Is that right?",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "resp_258bc85cf0ff4ca690582d4ee0571f77",
+      "status": "completed",
+      "trigger": "user_speech",
+      "user_transcript": "Yes, that's correct.",
+      "user_speech_ended_at_ms": 1789387288458,
+      "user_confidence": 1.0,
+      "agent_text": null,
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": [
+        {
+          "call_id": "chatcmpl-tool-b066137f6eec4220",
+          "name": "save_field",
+          "arguments": {
+            "field": "full_name",
+            "status": "confirmed",
+            "value": "Arjun Mehta"
+          },
+          "result": "{\"ok\":true,\"confirmed\":\"full_name\"}",
+          "dispatched_at_ms": 1789387290432,
+          "duration_ms": 989,
+          "is_error": false,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "turn_id": "resp_85f667ae62344dbf94efeca8b6ef6e66",
+      "status": "completed",
+      "trigger": "tool_result",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": "Thank you. And what is your date of birth?",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "resp_b8f21416ad8e4667a1deeed1d7359bdf",
+      "status": "completed",
+      "trigger": "user_speech",
+      "user_transcript": "My date of birth is the 12th of March, 1990.",
+      "user_speech_ended_at_ms": 1789387302128,
+      "user_confidence": 1.0,
+      "agent_text": null,
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": [
+        {
+          "call_id": "chatcmpl-tool-a712dde9cdde7273",
+          "name": "save_field",
+          "arguments": {
+            "field": "date_of_birth",
+            "status": "heard",
+            "value": "1990-03-12"
+          },
+          "result": "{\"ok\":true,\"readback\":\"I have your date of birth as 12 March 1990. Is that right?\"}",
+          "dispatched_at_ms": 1789387304058,
+          "duration_ms": 1073,
+          "is_error": false,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "turn_id": "resp_3204aca2c1884841af3dfe32bebdd9ba",
+      "status": "completed",
+      "trigger": "tool_result",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": "I have your date of birth as 12 March 1990. Is that right?",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "user_speech_1",
+      "status": "completed",
+      "trigger": "user_speech",
+      "user_transcript": "Yes.",
+      "user_speech_ended_at_ms": null,
+      "user_confidence": 1.0,
+      "agent_text": null,
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "resp_72ec27b1369f466f95d2785491960890",
+      "status": "completed",
+      "trigger": "greeting",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": null,
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": [
+        {
+          "call_id": "chatcmpl-tool-a23aa6cddb805e20",
+          "name": "save_field",
+          "arguments": {
+            "field": "date_of_birth",
+            "status": "confirmed",
+            "value": "1990-03-12"
+          },
+          "result": "{\"ok\":true,\"confirmed\":\"date_of_birth\"}",
+          "dispatched_at_ms": 1789387315814,
+          "duration_ms": 367,
+          "is_error": false,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "turn_id": "resp_d5df696d789f4cd29f258aba8c905408",
+      "status": "completed",
+      "trigger": "tool_result",
+      "user_transcript": null,
+      "user_speech_ended_at_ms": null,
+      "user_confidence": null,
+      "agent_text": "Is there anything else I can help you with today?",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": null,
+      "tool_calls": null
+    },
+    {
+      "turn_id": "resp_9a6e9c7c8ea74fd682c5135676eccaa8",
+      "status": "completed",
+      "trigger": "user_speech",
+      "user_transcript": "No, that's all. Thank you. Bye.",
+      "user_speech_ended_at_ms": 1789387323859,
+      "user_confidence": 1.0,
+      "agent_text": "Goodbye.",
+      "interrupted_at_ms": null,
+      "time_to_first_audio_ms": 506,
+      "tool_calls": null
+    }
+  ]
+}
