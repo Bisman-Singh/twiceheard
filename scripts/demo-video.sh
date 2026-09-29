@@ -37,10 +37,13 @@ CUT_TO=191
 TAIL_END=218
 
 # Each narration line's position on the finished timeline, in seconds.
-OPENING=0.8
-AFTER_CALL=178
-ON_THE_CHART=195
-BED_AT=$(echo "$LEAD_IN + $CALL_STARTS_AT" | bc)
+# In milliseconds. ffmpeg accepts a seconds suffix here in principle and ignores it in
+# practice, which put the whole call underneath the opening narration and was only caught
+# by listening. Milliseconds are what this filter actually honours.
+OPENING_MS=800
+AFTER_CALL_MS=178000
+ON_THE_CHART_MS=195000
+BED_AT_MS=$(python3 -c "print(int((${LEAD_IN} + ${CALL_STARTS_AT}) * 1000))")
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "$VIDEO" -i "$BED" \
@@ -50,10 +53,10 @@ ffmpeg -hide_banner -loglevel error -y \
          tpad=start_mode=clone:start_duration=${LEAD_IN}[v1];
     [0:v]trim=${CUT_TO}:${TAIL_END},setpts=PTS-STARTPTS[v2];
     [v1][v2]concat=n=2:v=1:a=0[vout];
-    [1:a]adelay=${BED_AT}s:all=1,volume=0.95[bed];
-    [2:a]adelay=${OPENING}s:all=1[l1];
-    [3:a]adelay=${AFTER_CALL}s:all=1[l4];
-    [4:a]adelay=${ON_THE_CHART}s:all=1[l6];
+    [1:a]adelay=${BED_AT_MS}|${BED_AT_MS},volume=0.95[bed];
+    [2:a]adelay=${OPENING_MS}|${OPENING_MS}[l1];
+    [3:a]adelay=${AFTER_CALL_MS}|${AFTER_CALL_MS}[l4];
+    [4:a]adelay=${ON_THE_CHART_MS}|${ON_THE_CHART_MS}[l6];
     [bed][l1][l4][l6]amix=inputs=4:normalize=0:duration=longest,
          alimiter=limit=0.95[aout]
   " \
