@@ -44,10 +44,10 @@ A_CHART_FROM=222.3
 A_CHART_TO=247
 
 # Call B: the stretch around the medication readback nobody answered, then its chart.
-B_TALK_FROM=110
-B_TALK_TO=138
-B_CHART_FROM=216.2
-B_CHART_TO=244
+B_TALK_FROM=114
+B_TALK_TO=136
+B_CHART_FROM=227.8
+B_CHART_TO=255
 
 # Parenthesised on purpose. Without the brackets `ms "$LEAD_IN + $CALL_STARTS_AT"`
 # evaluates as 11 + 4*1000 and lays the whole call underneath the opening narration,

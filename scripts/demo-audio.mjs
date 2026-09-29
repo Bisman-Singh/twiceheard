@@ -130,6 +130,8 @@ const parts = [silence(8)];
 const starts = VOICE_FILE ? lineStarts(VOICE_FILE, SCRIPT.length) : null;
 /** The medications readback is answered by the line at this position in the script. */
 const MEDICATION_ANSWER = 8;
+/** How long the silent caller stays silent, on top of the answer they are not giving. */
+const WAIT_OUT = 12;
 /**
  * Where a line takes its audio from, when it is not its own position.
  *
@@ -146,9 +148,11 @@ SCRIPT.forEach(([line, gap], index) => {
     ? cut(VOICE_FILE, starts[clip], starts[clip + 1] ?? null, index)
     : speak(line, index);
   const silent = VARIANT === "unanswered" && index === MEDICATION_ANSWER;
-  // The gap still has to hold the clip's own length, or every later answer slides
-  // forward and lands on the wrong question.
-  parts.push(silent ? silence(spoken.length / (RATE * 2)) : spoken, silence(gap));
+  // The gap holds the clip's own length so later answers do not slide forward, plus
+  // long enough for the agent to stop waiting and ask its next question. Without that
+  // the caller's next line lands against the unanswered readback instead, and the
+  // chart reports them as having answered a question they never heard.
+  parts.push(silent ? silence(spoken.length / (RATE * 2) + WAIT_OUT) : spoken, silence(gap));
 });
 
 const pcm = Buffer.concat(parts);
