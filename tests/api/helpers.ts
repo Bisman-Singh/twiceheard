@@ -9,7 +9,13 @@ import { memoryFirstDelivery, memorySessionOwners } from "@/lib/store/redis";
 
 export const SECRET = "s".repeat(40);
 export const WEBHOOK_SECRET = "w".repeat(40);
-export const NOW = new Date("2026-09-14T02:30:00Z");
+/**
+ * Twenty five seconds into the call in `tests/fixtures/timeline.json`, which
+ * starts at 12:01:05Z. The clock and the fixture have to agree: a browser
+ * claims its session while the call is running, and `claimIsLive` measures the
+ * claim against the call's own start.
+ */
+export const NOW = new Date("2026-09-14T12:01:30Z");
 
 /** A full set of server dependencies with no network, no Redis and a fixed clock. */
 export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
@@ -20,6 +26,7 @@ export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
       webhookSecret: WEBHOOK_SECRET,
       agentId: "agent-sunrise",
       redis: null,
+      sms: null,
     },
     clinics: demoRegistry("agent-sunrise"),
     intakes: memoryIntakeStore(() => NOW.getTime()),

@@ -155,6 +155,16 @@ describe("POST /api/call/result", () => {
     expect((await askResult()).status).toBe(404);
   });
 
+  it("will not hand back a chart whose claim was made long after the call", async () => {
+    const deps = callDeps();
+    await post(claim, "/api/call/claim", { sessionId: SESSION });
+    const { record } = (await (await askResult()).json()) as { record: CallRecord };
+    // A session id is not a secret. A claim made days after the call is not a
+    // claim made by anyone who was on it.
+    await deps.calls.save({ ...record, startedAt: NOW.getTime() - 3 * 24 * 60 * 60 * 1000 });
+    expect((await askResult()).status).toBe(404);
+  });
+
   it("asks again for a session the platform has not published yet", async () => {
     const deps = callDeps();
     vi.mocked(deps.voice.getSession).mockRejectedValue(

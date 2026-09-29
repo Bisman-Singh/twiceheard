@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { readCaller } from "@/lib/http/caller";
+import { claimIsLive, readCaller } from "@/lib/http/caller";
 import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/guard";
 import { ArtifactsNotReady, processSession } from "@/lib/postcall/process";
+import type { CallRecord } from "@/lib/postcall/record";
 import { postCallDeps } from "@/lib/postcall/run";
 import { serverDeps } from "@/lib/server/deps";
+import type { SessionClaim } from "@/lib/store/redis";
 import { VoiceAgentApiError } from "@/lib/voice-agent/client";
 
 export const runtime = "nodejs";
@@ -36,11 +38,13 @@ export async function POST(request: Request): Promise<Response> {
     }
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
     // Ownership, not a guessable id, is what makes this call's chart readable.
-    if (!(await deps.sessions.isOwner(sessionId, caller.owner)))
-      throw new HttpError(403, "not_yours");
+    // The owner is checked before any work is done; whether the claim was made
+    // while the call was live is checked against the call's own start, below.
+    const claim = await deps.sessions.claimOf(sessionId);
+    if (claim?.owner !== caller.owner) throw new HttpError(403, "not_yours");
 
     const saved = await deps.calls.get(sessionId);
-    if (saved) return ready(saved.clinicId === clinic.id ? saved : null);
+    if (saved) return ready(mine(saved, claim, clinic.id));
 
     // A relayed call carries no agent id, so the clinic comes from the grant instead.
     const post = postCallDeps(deps);
@@ -54,16 +58,28 @@ export async function POST(request: Request): Promise<Response> {
       if (error instanceof VoiceAgentApiError && error.status === 404) return undefined;
       throw error;
     });
-    if (record === undefined) {
+    // Not ready yet, and a session that belongs to no clinic here, are both
+    // "ask again": neither is a chart, and neither is an error to report.
+    if (!record) {
       return Response.json({ status: "pending" }, { headers: { "cache-control": "no-store" } });
     }
-    return ready(record);
+    return ready(mine(record, claim, clinic.id));
   } catch (error) {
     return jsonError(error);
   }
 }
 
-function ready(record: unknown): Response {
+/**
+ * The record, but only if it is this caller's to see. The clinic on the record
+ * decides, not the clinic on the grant, and the claim has to have been made
+ * while the call was running.
+ */
+function mine(record: CallRecord, claim: SessionClaim, clinicId: string): CallRecord | null {
+  if (record.clinicId !== clinicId) return null;
+  return claimIsLive(claim, claim.owner, record.startedAt) ? record : null;
+}
+
+function ready(record: CallRecord | null): Response {
   if (!record) throw new HttpError(404, "no_record");
   return Response.json({ status: "ready", record }, { headers: { "cache-control": "no-store" } });
 }

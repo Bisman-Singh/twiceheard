@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readCaller } from "@/lib/http/caller";
+import { claimIsLive, readCaller } from "@/lib/http/caller";
 import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/guard";
 import { serverDeps } from "@/lib/server/deps";
 
@@ -32,9 +32,14 @@ export async function POST(request: Request): Promise<Response> {
     const clinic = caller ? deps.clinics.byId(caller.clinicId) : null;
     if (!caller || !clinic) throw new HttpError(401, "no_call_in_progress");
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
-    // Ownership, not a guessable id, is what makes this call's record erasable.
-    if (!(await deps.sessions.isOwner(sessionId, caller.owner)))
+    // Ownership, not a guessable id, is what makes this call's record erasable,
+    // and the claim has to have been made while the call was running.
+    const claim = await deps.sessions.claimOf(sessionId);
+    if (claim?.owner !== caller.owner) throw new HttpError(403, "not_yours");
+    const held = await deps.calls.get(sessionId);
+    if (held && !claimIsLive(claim, caller.owner, held.startedAt)) {
       throw new HttpError(403, "not_yours");
+    }
 
     if (await deps.calls.remove(clinic.id, sessionId)) {
       // The clinic and the fact of it. What was erased is not written down again here.

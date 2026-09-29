@@ -397,6 +397,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
       said("my number is 98765 43210", CLEAR),
       said("no regular medications", CLEAR),
       said("I am allergic to penicillin", CLEAR),
+      // A complete call is one where the recording carries every value on the
+      // chart, the reason for the visit included.
+      said("I have had a persistent cough", CLEAR),
     ],
     expected: {
       fields: [

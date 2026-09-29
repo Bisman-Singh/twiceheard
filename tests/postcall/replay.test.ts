@@ -439,4 +439,98 @@ describe("a caller who does not follow the script", () => {
     expect(replay.chart.date_of_birth.value).toBe("1990-03-12");
     expect(replay.chart.date_of_birth.status).toBe("heard");
   });
+
+  it("does not read a bare 'right' inside a sentence as agreement", () => {
+    const replay = replayChart(
+      [
+        caller("my number is 98765 43210"),
+        save("phone", "98765 43210", "heard"),
+        agent(
+          "I have your number as nine eight seven six five, four three two one zero. Is that right?",
+        ),
+        caller("Sorry, I didn't hear you right."),
+        save("phone", "98765 43210", "confirmed"),
+      ],
+      context,
+    );
+    // The caller asked to hear it again. That is not a yes, and this field used to
+    // come out confirmed and green off it.
+    expect(replay.chart.phone.status).toBe("heard");
+    expect(replay.issues).toEqual([
+      {
+        field: "phone",
+        issue: "caller_did_not_agree",
+        callerSaid: "Sorry, I didn't hear you right.",
+      },
+    ]);
+  });
+
+  it("still takes a plain 'that's right' or 'ठीक है' as agreement", () => {
+    for (const answer of ["That's right.", "Correct.", "ठीक है"]) {
+      const replay = replayChart(
+        [
+          caller("Arjun Mehta"),
+          save("full_name", "Arjun Mehta", "heard"),
+          agent("I have your name as Arjun Mehta. Is that right?"),
+          caller(answer),
+          save("full_name", "Arjun Mehta", "confirmed"),
+        ],
+        context,
+      );
+      expect(replay.chart.full_name.status).toBe("confirmed");
+      expect(replay.issues).toEqual([]);
+    }
+  });
+
+  it("catches one yes spent on two values even when a third is judged in between", () => {
+    const replay = replayChart(
+      [
+        caller("Arjun Mehta"),
+        save("full_name", "Arjun Mehta", "heard"),
+        agent("I have your name as Arjun Mehta. Is that right?"),
+        caller("Yes"),
+        save("full_name", "Arjun Mehta", "confirmed"),
+        caller("98765 43210 and no allergies"),
+        save("phone", "98765 43210", "heard"),
+        save("allergies", "none", "heard"),
+        agent(
+          "I have your number as nine eight seven six five, four three two one zero. Is that right? " +
+            "I have that you have no known allergies. Is that right?",
+        ),
+        caller("Yes, both of those are correct"),
+        save("phone", "98765 43210", "confirmed"),
+        // The model re-files the name it already confirmed. A single-slot guard forgot
+        // which yes had been spent here, and the allergy list went through unflagged.
+        save("full_name", "Arjun Mehta", "confirmed"),
+        save("allergies", "none", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.issues).toEqual([
+      { field: "allergies", issue: "one_yes_two_values", alsoAnswered: "phone" },
+    ]);
+    expect(replay.chart.allergies.status).toBe("heard");
+  });
+
+  it("refuses a readback the agent voiced with a different value", () => {
+    expect(
+      wasSpoken(
+        "I have your name as Arjun Mehta. Is that right?",
+        "I have your name as Arjun Sharma. Is that right?",
+      ),
+    ).toBe(false);
+    expect(
+      wasSpoken(
+        "I have your allergies as penicillin. Is that the complete list?",
+        "I have your allergies as sulfa. Is that the complete list?",
+      ),
+    ).toBe(false);
+    // The frame around the value may still be said any way the agent likes.
+    expect(
+      wasSpoken(
+        "I have your date of birth as 12 March 1990. Is that right?",
+        "So, I have your date of birth as March twelfth, nineteen ninety. Is that right?",
+      ),
+    ).toBe(true);
+  });
 });

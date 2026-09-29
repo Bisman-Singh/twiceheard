@@ -174,6 +174,16 @@ describe("processSession", () => {
     expect(await at("Pacific/Honolulu")).toBeNull();
   });
 
+  it("treats a recording with nothing on the caller's channel as no second hearing", async () => {
+    // Grading every field against silence and stamping the record "verified" would
+    // make the two-hearings claim untrue on exactly the calls where it matters.
+    const d = deps({ hearing: { transcribe: async () => ({ caller: [], agent: agentsWords }) } });
+    const record = await processSession("sess_fixture", d);
+    expect(record?.hearing).toBe("unavailable");
+    expect(record?.verifications).toEqual({});
+    expect(record?.grade.counts.green).toBe(0);
+  });
+
   it("builds the chart from the turns it can read when one arrives in a shape it cannot", async () => {
     const damaged = {
       ...timeline,

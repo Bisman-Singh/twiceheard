@@ -35,6 +35,7 @@ describe("readEnv", () => {
       webhookSecret: "w".repeat(32),
       agentId: undefined,
       redis: null,
+      sms: null,
     });
     const vercel = readEnv({
       ...base,
@@ -52,13 +53,41 @@ describe("readEnv", () => {
       redis: { url: "https://u.example.upstash.io", token: "u" },
       agentId: "agent-1",
     });
-    expect(
+    // An empty value is the same as an unset one, which is how a platform's blank field arrives.
+    expect(readEnv({ ...base, TWICEHEARD_AGENT_ID: "" }).agentId).toBeUndefined();
+  });
+
+  it("refuses half a pair rather than quietly running without the thing", () => {
+    // A URL with no token is a typo. Treating it as a decision to run unshared put the
+    // tool call that saves a field and the request that reads the chart on different
+    // instances, and the caller heard "that intake id is not recognised" mid-call.
+    expect(() => readEnv({ ...base, KV_REST_API_URL: "https://kv.example.upstash.io" })).toThrow(
+      /KV_REST_API_URL, KV_REST_API_TOKEN/,
+    );
+    expect(() => readEnv({ ...base, UPSTASH_REDIS_REST_TOKEN: "u" })).toThrow(
+      /UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN/,
+    );
+    expect(() => readEnv({ ...base, TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t" })).toThrow(
+      /TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_NUMBER/,
+    );
+  });
+
+  it("reads a messaging provider only when all three parts are present and the number is E.164", () => {
+    const withSms = readEnv({
+      ...base,
+      TWILIO_ACCOUNT_SID: "AC1",
+      TWILIO_AUTH_TOKEN: "token",
+      TWILIO_NUMBER: "+14155550123",
+    });
+    expect(withSms.sms).toEqual({ accountSid: "AC1", authToken: "token", from: "+14155550123" });
+    expect(() =>
       readEnv({
         ...base,
-        KV_REST_API_URL: "https://kv.example.upstash.io",
-        TWICEHEARD_AGENT_ID: "",
-      }).redis,
-    ).toBeNull();
+        TWILIO_ACCOUNT_SID: "AC1",
+        TWILIO_AUTH_TOKEN: "token",
+        TWILIO_NUMBER: "4155550123",
+      }),
+    ).toThrow(/TWILIO_NUMBER/);
   });
 
   it("names the variable that is missing or too short, never its value", () => {
@@ -98,6 +127,29 @@ describe("server deps", () => {
       }),
     );
     expect(shared.callStarts).toBeInstanceOf(SharedRateLimiter);
+  });
+
+  it("sends a booking text only when a provider is configured, and refuses otherwise", async () => {
+    // A messenger that reports success it did not have made the agent promise a
+    // text that was never sent, and wrote that promise onto the clinic's record.
+    const silent = buildDeps(readEnv(base));
+    expect(await silent.sms.send("+919812345678", "booked")).toEqual({ ok: false });
+
+    const fetchCalls: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      fetchCalls.push(String(url));
+      return new Response("{}", { status: 201 });
+    });
+    const wired = buildDeps(
+      readEnv({
+        ...base,
+        TWILIO_ACCOUNT_SID: "AC1",
+        TWILIO_AUTH_TOKEN: "token",
+        TWILIO_NUMBER: "+14155550123",
+      }),
+    );
+    expect(await wired.sms.send("+919812345678", "booked")).toEqual({ ok: true });
+    expect(fetchCalls).toEqual(["https://api.twilio.com/2010-04-01/Accounts/AC1/Messages.json"]);
   });
 
   it("builds once from the process environment and can be replaced for tests", () => {

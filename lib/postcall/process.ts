@@ -182,6 +182,9 @@ async function secondHearing(
   if (!audioUrl) return { verifications: {}, hearing: "unavailable" as const };
   try {
     const heard = await deps.hearing.transcribe(audioUrl, keyterms(clinic));
+    // Nothing on the caller's channel is not a second hearing. Saying it was one
+    // would let every field be graded against silence.
+    if (heard.caller.length === 0) return { verifications: {}, hearing: "unavailable" as const };
     return { verifications: verifyChart(chart, heard.caller), hearing: "verified" as const };
   } catch {
     return { verifications: {}, hearing: "unavailable" as const };
@@ -195,8 +198,13 @@ export function verifyChart(
   const result: Partial<Record<FieldId, Verification>> = {};
   for (const id of FIELD_IDS) {
     const value = chart[id].value;
-    const verification = value === null ? null : verifyValue(FIELDS[id], value, caller);
-    if (verification) result[id] = verification;
+    if (value === null) continue;
+    // A field the second hearing cannot check has not been heard twice, so it must
+    // not be green. Free text has no value to search the recording for, and leaving
+    // it out of the result let the grader fall back to the live chart: the reason
+    // for the visit came out green on every ordinary call, on the model's word
+    // alone, with no readback, no yes and no second hearing behind it.
+    result[id] = verifyValue(FIELDS[id], value, caller);
   }
   return result;
 }

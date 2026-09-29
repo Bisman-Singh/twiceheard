@@ -46,7 +46,139 @@ const MONTHS = [
   "november",
   "december",
 ];
-const NEGATIVE = new Set(["no", "none", "nothing", "not", "nil", "don't", "dont", "नहीं"]);
+/**
+ * A denial, in either language the caller may use. The intake side accepts the
+ * Hindi forms too, so leaving them out here meant a caller who plainly denied an
+ * allergy in Hindi was reported as never having denied it, and the clinic saw
+ * amber on a field that was answered clearly.
+ */
+const NEGATIVE = new Set([
+  "no",
+  "none",
+  "nothing",
+  "not",
+  "nil",
+  "don't",
+  "dont",
+  "nope",
+  "never",
+  "nahi",
+  "nahin",
+  "नहीं",
+  "नही",
+]);
+/** Words that carry no meaning of their own inside a denial. */
+const DENIAL_FILLER = new Set([
+  "a",
+  "all",
+  "am",
+  "an",
+  "any",
+  "anything",
+  "at",
+  "currently",
+  "do",
+  "dont",
+  "don't",
+  "else",
+  "for",
+  "had",
+  "hai",
+  "hain",
+  "has",
+  "have",
+  "i",
+  "is",
+  "it",
+  "just",
+  "known",
+  "koi",
+  "kuch",
+  "me",
+  "moment",
+  "my",
+  "of",
+  "on",
+  "present",
+  "regular",
+  "regularly",
+  "right",
+  "so",
+  "take",
+  "taking",
+  "that",
+  "thats",
+  "that's",
+  "the",
+  "them",
+  "this",
+  "time",
+  "to",
+  "है",
+  "हैं",
+]);
+/** The nouns a caller names when denying one of these lists. */
+const LIST_NOUNS = new Set([
+  "allergen",
+  "allergens",
+  "allergic",
+  "allergies",
+  "allergy",
+  "dawai",
+  "drug",
+  "drugs",
+  "food",
+  "foods",
+  "med",
+  "medication",
+  "medications",
+  "medicine",
+  "medicines",
+  "meds",
+  "pill",
+  "pills",
+  "prescription",
+  "prescriptions",
+  "reaction",
+  "reactions",
+  "tablet",
+  "tablets",
+]);
+/** Dose and frequency words, which name no drug. */
+const UNITS = new Set([
+  "mg",
+  "mcg",
+  "ug",
+  "ml",
+  "g",
+  "gm",
+  "iu",
+  "unit",
+  "units",
+  "tab",
+  "tabs",
+  "tablet",
+  "tablets",
+  "cap",
+  "caps",
+  "capsule",
+  "capsules",
+  "puff",
+  "puffs",
+  "drop",
+  "drops",
+  "daily",
+  "twice",
+  "once",
+  "thrice",
+  "od",
+  "bd",
+  "tds",
+  "hs",
+  "prn",
+  "mane",
+  "nocte",
+]);
 /** How many words a spoken date may spread across: "the 12th of March, 1990". */
 const DATE_WINDOW = 8;
 /** How far past a "no" the denial still reaches: "I do not currently take metformin". */
@@ -161,7 +293,7 @@ export function verifyValue(
   spec: FieldSpec,
   value: FieldValue,
   caller: readonly Utterance[],
-): Verification | null {
+): Verification {
   const spoken = caller.map(tokens);
   switch (spec.kind) {
     case "name":
@@ -176,11 +308,87 @@ export function verifyValue(
     case "list":
       return verifyList(value as readonly string[], spoken);
     case "text":
-      return null;
+      return verifyText(String(value), spoken);
   }
 }
 
 const ABSENT: Verification = { hearing: "absent", minConfidence: null };
+
+/** Words that carry none of a phrase's meaning, so their absence proves nothing. */
+const EMPTY_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "the",
+  "of",
+  "for",
+  "to",
+  "in",
+  "on",
+  "at",
+  "my",
+  "me",
+  "i",
+  "is",
+  "are",
+  "was",
+  "were",
+  "have",
+  "has",
+  "had",
+  "been",
+  "be",
+  "am",
+  "it",
+  "this",
+  "that",
+  "some",
+  "about",
+  "since",
+  "very",
+  "really",
+  "quite",
+  "bit",
+  "been",
+  "getting",
+  "got",
+  "feel",
+  "feeling",
+]);
+/** Share of a phrase's own words the recording has to carry before it counts as agreement. */
+const TEXT_OVERLAP = 0.6;
+
+/**
+ * Free text, checked by the words it is made of.
+ *
+ * A reason for a visit is never said twice the same way, so there is no exact
+ * sequence to look for: "I have had a fever and a sore throat for three days"
+ * becomes "fever and a sore throat for 3 days" on the chart. What can be
+ * checked is that the words carrying the meaning were actually said. Returning
+ * nothing here, which is what this did, meant the grader fell back to the live
+ * chart and the field came out green on the model\u0027s word alone, with no
+ * readback, no yes and no second hearing behind it.
+ */
+function verifyText(value: string, spoken: Token[][]): Verification {
+  const wanted = tokenise(value)
+    .map((item) => item.token)
+    .filter((word) => !EMPTY_WORDS.has(word));
+  if (wanted.length === 0) return ABSENT;
+  const said = new Map<string, Token>();
+  for (const utterance of spoken) {
+    for (const item of utterance) {
+      const held = said.get(item.token);
+      if (!held || item.confidence < held.confidence) said.set(item.token, item);
+    }
+  }
+  const found = wanted
+    .map((word) => said.get(word))
+    .filter((item): item is Token => item !== undefined);
+  if (found.length === 0) return ABSENT;
+  return found.length / wanted.length >= TEXT_OVERLAP
+    ? { hearing: "agrees", minConfidence: lowest(found) }
+    : { hearing: "differs", minConfidence: lowest(found) };
+}
 
 function lowest(found: readonly Token[]): number {
   return Math.min(...found.map((item) => item.confidence));
@@ -287,9 +495,16 @@ function coveringTokens(digitTokens: readonly Token[], from: number, length: num
   return used;
 }
 
-/** The word that names an item: "Metformin 500 mg twice daily" is found by "metformin". */
+/**
+ * The word that names an item: "Metformin 500 mg twice daily" is found by
+ * "metformin". A dose can come first, and "500 mg Metformin" used to be looked
+ * for by "mg", so any dose anywhere in the call verified the drug.
+ */
 function keyWord(item: string): string {
-  return tokenise(item).find((token) => /\p{L}/u.test(token.token))?.token ?? item.toLowerCase();
+  const named = tokenise(item).filter((token) => /\p{L}/u.test(token.token));
+  return (
+    named.find((token) => !UNITS.has(token.token))?.token ?? named[0]?.token ?? item.toLowerCase()
+  );
 }
 
 /** The words the caller stated, with everything a denial covers left out. */
@@ -303,17 +518,37 @@ function affirmed(utterance: Token[]): Token[] {
   return stated;
 }
 
-/** An empty list is only agreed to by a clear "no". */
-function verifyNone(all: Token[]): Verification {
-  const negative = all.filter((item) => NEGATIVE.has(item.token));
-  return negative.length > 0
-    ? { hearing: "agrees", minConfidence: Math.max(...negative.map((item) => item.confidence)) }
+/**
+ * An empty list is only agreed to by an utterance that is a denial and nothing
+ * else.
+ *
+ * Any negative anywhere in the call used to do, scored by the loudest one. The
+ * repo's own fixture proves what that was worth: a caller who never mentioned
+ * allergies says "No, that\u0027s all. Thank you." at the end of the call, and
+ * both "no allergies" and "no medications" came back agreed at 0.99. That is
+ * the second hearing agreeing with nothing, on the two chart entries where
+ * being wrong is most dangerous.
+ */
+function verifyNone(utterances: Token[][]): Verification {
+  const denials = utterances
+    .filter(
+      (utterance) =>
+        utterance[0] !== undefined &&
+        NEGATIVE.has(utterance[0].token) &&
+        utterance.every(
+          (item) =>
+            NEGATIVE.has(item.token) || DENIAL_FILLER.has(item.token) || LIST_NOUNS.has(item.token),
+        ),
+    )
+    .flatMap((utterance) => utterance.filter((item) => NEGATIVE.has(item.token)));
+  return denials.length > 0
+    ? { hearing: "agrees", minConfidence: Math.min(...denials.map((item) => item.confidence)) }
     : ABSENT;
 }
 
 /** Each item's first word, or a clear "no" for an empty list. */
 function verifyList(items: readonly string[], spoken: Token[][]): Verification {
-  if (items.length === 0) return verifyNone(spoken.flat());
+  if (items.length === 0) return verifyNone(spoken);
   const keys = items.map((item) => keyWord(item));
   // "I do not take metformin any more" names the drug to deny it, which is not a list.
   const stated = spoken.flatMap(affirmed);

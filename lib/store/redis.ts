@@ -134,43 +134,56 @@ export function memoryFirstDelivery(): FirstDelivery {
  * A session id is the only handle a caller has on their own call, and it is
  * not a secret: it appears in a desk address and in a log line. So claiming
  * and checking are deliberately separate. `claim` happens once, while the call
- * is live, and first claim wins atomically. `isOwner` only reads, so asking
- * for a chart can never make the asker its owner, and a call nobody claimed,
- * which is every call that came in over the phone, has no owner at all and is
- * not readable through the caller's endpoints.
+ * is live, and first claim wins atomically. `claimOf` only reads, so asking
+ * for a chart can never make the asker its owner.
+ *
+ * What makes "first claim wins" mean something is that the claim records when
+ * it happened. A session id is not a secret, so a claim on its own proves
+ * nothing: `claimIsLive` insists the claim was made inside the call's own
+ * lifetime, which a stranger quoting an id they read later cannot manage. That
+ * is also why this key is allowed to expire without the id becoming reusable:
+ * a fresh claim on an old call fails the window, not the store.
  */
+export interface SessionClaim {
+  owner: string;
+  /** When the claim was made, so a reader can tell a live claim from a late one. */
+  at: number;
+}
+
 export interface SessionOwners {
-  claim(sessionId: string, owner: string): Promise<boolean>;
-  isOwner(sessionId: string, owner: string): Promise<boolean>;
+  claim(sessionId: string, owner: string, at: number): Promise<boolean>;
+  claimOf(sessionId: string): Promise<SessionClaim | null>;
 }
 
 export function redisSessionOwners(redis: RedisLike): SessionOwners {
-  const read = async (sessionId: string) => redis.get<string>(keys.owner(sessionId));
+  const read = async (sessionId: string) => redis.get<SessionClaim>(keys.owner(sessionId));
   return {
-    async claim(sessionId, owner) {
-      const claimed = await redis.set(keys.owner(sessionId), owner, {
-        nx: true,
-        px: OWNER_TTL_MS,
-      });
-      return claimed !== null || (await read(sessionId)) === owner;
+    async claim(sessionId, owner, at) {
+      const claimed = await redis.set(
+        keys.owner(sessionId),
+        { owner, at },
+        { nx: true, px: OWNER_TTL_MS },
+      );
+      if (claimed !== null) return true;
+      return (await read(sessionId))?.owner === owner;
     },
-    async isOwner(sessionId, owner) {
-      return (await read(sessionId)) === owner;
+    async claimOf(sessionId) {
+      return read(sessionId);
     },
   };
 }
 
 export function memorySessionOwners(): SessionOwners {
-  const owners = new Map<string, string>();
+  const owners = new Map<string, SessionClaim>();
   return {
-    async claim(sessionId, owner) {
+    async claim(sessionId, owner, at) {
       const held = owners.get(sessionId);
-      if (held !== undefined) return held === owner;
-      owners.set(sessionId, owner);
+      if (held !== undefined) return held.owner === owner;
+      owners.set(sessionId, { owner, at });
       return true;
     },
-    async isOwner(sessionId, owner) {
-      return owners.get(sessionId) === owner;
+    async claimOf(sessionId) {
+      return owners.get(sessionId) ?? null;
     },
   };
 }

@@ -37,7 +37,7 @@ export interface Replay {
  * agreement, and ना is in the no list because it is an ordinary Hindi no.
  */
 const YES =
-  /\b(yes|yeah|yep|yup|correct|right|that's right|exactly|sure|haan|haa|theek hai|sahi|sahi hai)\b|(?<![\p{L}\p{M}\p{N}])(हाँ|हां|सही)(?![\p{L}\p{M}\p{N}])/iu;
+  /\b(yes|yeah|yep|yup|that's right|exactly|haan|haa|sahi|sahi hai)\b|(?<![\p{L}\p{M}\p{N}])(हाँ|हां|सही)(?![\p{L}\p{M}\p{N}])/iu;
 const NO =
   /\b(no|nope|not|wrong|incorrect|nahi|nahin|galat)\b|(?<![\p{L}\p{M}\p{N}])(नहीं|नही|ना|न|गलत)(?![\p{L}\p{M}\p{N}])/iu;
 /**
@@ -48,6 +48,18 @@ const NO =
  * carries a yes of its own.
  */
 const JI_ALONE = /^[\s.,!?।]*(जी|ji)[\s.,!?।]*$/iu;
+/**
+ * The same trap as जी, in the other script. "right", "correct" and "sure" are
+ * ordinary words in the middle of a sentence: "sorry, I didn't hear you right",
+ * "correct that to Kumar", "are you sure?". Each was being scored as agreement
+ * to whatever had just been read back, so a phone number the caller had asked
+ * to have repeated came out confirmed and green. They count only as the whole
+ * answer. "ठीक है" joins them here rather than in YES because it is the
+ * commonest Hindi yes on its own and an ordinary "it is fine" inside a
+ * sentence, which is why "मेरा जीवन ठीक है" must not be agreement.
+ */
+const RIGHT_ALONE =
+  /^[\s.,!?।]*((that'?s |quite |all |absolutely )?(right|correct|sure)|(theek hai|theek|ठीक है|ठीक)( ji| जी)?)[\s.,!?।]*$/iu;
 /** Share of the readback's words that must appear in what the agent said. */
 const SPOKEN_OVERLAP = 0.85;
 
@@ -132,10 +144,28 @@ const digitsOf = (text: string) =>
     .join("");
 
 /**
+ * The words this product puts around a value. Only these may be paraphrased.
+ */
+const TEMPLATE = new Set(
+  words(
+    "I have your name as. I have your date of birth as. I have your number as. I have noted. " +
+      "I have your allergies as. I have your medications as. and " +
+      "I have that you have no known allergies. " +
+      "I have that you are not taking any regular medications. " +
+      "Is that right? Is that the complete list? Mr Mrs Ms Dr",
+  ),
+);
+
+/**
  * Did the agent say this sentence, allowing for small differences in how it
- * was voiced? Wording is forgiven; a number is not. The digits of the readback
+ * was voiced? Wording is forgiven; the value is not. The digits of the readback
  * have to appear in the agent's words in the same order, so a transposed or
  * altered number can never pass as the value that was read back.
+ *
+ * A share of matching words was not enough on its own. The frame is most of the
+ * sentence, so "I have your name as Arjun Mehta" scored as spoken against "Arjun
+ * Sharma", and an allergy read back as sulfa passed for penicillin. A word that
+ * belongs to the value rather than to the frame has to have been said.
  */
 export function wasSpoken(sentence: string, agentSaid: string): boolean {
   const digits = digitsOf(sentence);
@@ -146,7 +176,12 @@ export function wasSpoken(sentence: string, agentSaid: string): boolean {
   let found = 0;
   for (const word of wanted) {
     const count = available.get(word) ?? 0;
-    if (count === 0) continue;
+    if (count === 0) {
+      // A missing word of the value means the agent read something other than what
+      // the chart holds, which is a different sentence, not a paraphrase of this one.
+      if (!TEMPLATE.has(word)) return false;
+      continue;
+    }
     available.set(word, count - 1);
     found += 1;
   }
@@ -155,7 +190,7 @@ export function wasSpoken(sentence: string, agentSaid: string): boolean {
 
 /** A clear yes: affirmative words and no negative ones. "No, that's right" is not a yes. */
 export function isAgreement(text: string): boolean {
-  return (YES.test(text) || JI_ALONE.test(text)) && !NO.test(text);
+  return (YES.test(text) || JI_ALONE.test(text) || RIGHT_ALONE.test(text)) && !NO.test(text);
 }
 
 /** A readback, the point at which the agent was heard to say it, and the answer it drew. */
@@ -175,8 +210,13 @@ interface ReplayState {
   chart: Chart;
   issues: ReplayIssue[];
   pending: Map<FieldId, Readback>;
-  /** Which field has already spent one of the caller's agreements. */
-  agreementSpentBy: { field: FieldId; at: number } | null;
+  /**
+   * Which field spent the caller's agreement at each of their turns. A single
+   * slot was not enough: any third confirmation judged in between overwrote it,
+   * so one "yes, both of those are correct" confirmed two values and nothing
+   * was flagged.
+   */
+  agreementSpentAt: Map<number, FieldId>;
   /** Stands in for the clock when a tool event carries no timestamp of its own. */
   startedAt: number;
 }
@@ -193,7 +233,7 @@ export function replayChart(
     chart: emptyChart(),
     issues: [],
     pending: new Map(),
-    agreementSpentBy: null,
+    agreementSpentAt: new Map(),
     startedAt,
   };
   // Position in the call, so an agreement can be tied to the readback it answers.
@@ -267,7 +307,7 @@ function judgeConfirmation(state: ReplayState, field: string, status: string): b
   const verdict = checkConfirmation(field, state);
   if (verdict === null) return false;
   if ("agreedAt" in verdict) {
-    state.agreementSpentBy = { field, at: verdict.agreedAt };
+    state.agreementSpentAt.set(verdict.agreedAt, field);
     return false;
   }
   state.issues.push(verdict);
@@ -291,10 +331,10 @@ function checkConfirmation(field: FieldId, state: ReplayState): Verdict | null {
   if (!isAgreement(answer.text)) {
     return { field, issue: "caller_did_not_agree", callerSaid: answer.text.slice(0, 200) };
   }
-  const spent = state.agreementSpentBy;
   // A field confirmed twice off one yes is the model repeating itself, not two values.
-  if (spent && spent.field !== field && spent.at === answer.at) {
-    return { field, issue: "one_yes_two_values", alsoAnswered: spent.field };
+  const spentBy = state.agreementSpentAt.get(answer.at);
+  if (spentBy !== undefined && spentBy !== field) {
+    return { field, issue: "one_yes_two_values", alsoAnswered: spentBy };
   }
   return { agreedAt: answer.at };
 }

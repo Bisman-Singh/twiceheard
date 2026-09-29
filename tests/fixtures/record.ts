@@ -33,8 +33,10 @@ export function callRecord(
   return {
     sessionId: "sess_fixture",
     clinicId: "sunrise-family",
-    processedAt: Date.parse("2026-09-29T06:40:00Z"),
-    startedAt: Date.parse("2026-09-29T06:38:00Z"),
+    // The shared test clock sits inside this call, so a browser claiming at that
+    // moment is claiming while the call is running, as a real one does.
+    processedAt: Date.parse("2026-09-14T12:03:00Z"),
+    startedAt: Date.parse("2026-09-14T12:01:05Z"),
     durationSeconds: 63,
     chart,
     grade: gradeChart(chart, verifications),

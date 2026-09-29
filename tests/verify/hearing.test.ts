@@ -144,8 +144,23 @@ describe("verifyValue", () => {
     });
   });
 
-  it("does not verify free text", () => {
-    expect(verifyValue(FIELDS.reason_for_visit, "cough", caller)).toBeNull();
+  it("checks free text by the words that carry its meaning", () => {
+    const spoken = [said("I have had a fever and a sore throat for three days")];
+    // Never said the same way twice, so the words are what can be checked.
+    expect(
+      verifyValue(FIELDS.reason_for_visit, "fever and a sore throat for 3 days", spoken)?.hearing,
+    ).toBe("agrees");
+    // A reason the recording does not carry must not pass as heard twice: without
+    // this the grader fell back to the live chart and the field came out green on
+    // the model's word alone.
+    expect(verifyValue(FIELDS.reason_for_visit, "a persistent cough", spoken)?.hearing).toBe(
+      "absent",
+    );
+    expect(
+      verifyValue(FIELDS.reason_for_visit, "fever and a broken ankle and a rash", spoken)?.hearing,
+    ).toBe("differs");
+    // Nothing but filler carries no meaning to look for.
+    expect(verifyValue(FIELDS.reason_for_visit, "it is about the", spoken)?.hearing).toBe("absent");
   });
 });
 
@@ -273,6 +288,48 @@ describe("verifyValue on a list item said inside a denial", () => {
         ["Metformin"],
         [said("no allergies at all, and i take metformin", 0.9)],
       )?.hearing,
+    ).toBe("agrees");
+  });
+
+  it("agrees an empty list only with an utterance that is a denial and nothing else", () => {
+    // The goodbye at the end of a call used to verify both empty lists at the
+    // confidence of its loudest word, which is the second hearing agreeing with
+    // nothing on the two entries where being wrong is most dangerous.
+    expect(verifyValue(FIELDS.allergies, [], [said("no that's all thank you")])?.hearing).toBe(
+      "absent",
+    );
+    expect(verifyValue(FIELDS.medications, [], [said("i'm not sure about that")])?.hearing).toBe(
+      "absent",
+    );
+    // A caller listing allergens is not denying medications.
+    expect(
+      verifyValue(FIELDS.medications, [], [said("no this is my first visit"), said("peanuts")])
+        ?.hearing,
+    ).toBe("absent");
+    // A real denial still agrees, and is scored by its weakest word, not its strongest.
+    expect(verifyValue(FIELDS.allergies, [], [said("no known allergies", 0.6)])).toEqual({
+      hearing: "agrees",
+      minConfidence: 0.6,
+    });
+  });
+
+  it("understands a denial in Hindi, as the intake side already does", () => {
+    expect(verifyValue(FIELDS.allergies, [], [said("nahi koi allergy nahi hai", 0.92)])).toEqual({
+      hearing: "agrees",
+      minConfidence: 0.92,
+    });
+  });
+
+  it("looks for the drug in a dose-first item, not for the unit", () => {
+    // "500 mg Metformin" was looked for by "mg", so any dose anywhere in the call
+    // verified the drug.
+    expect(
+      verifyValue(FIELDS.medications, ["500 mg Metformin"], [said("i take 5 mg of something else")])
+        ?.hearing,
+    ).toBe("absent");
+    expect(
+      verifyValue(FIELDS.medications, ["500 mg Metformin"], [said("i take 500 mg metformin")])
+        ?.hearing,
     ).toBe("agrees");
   });
 });

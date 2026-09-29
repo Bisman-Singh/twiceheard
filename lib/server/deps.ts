@@ -12,7 +12,7 @@ import {
   type RequestLimiter,
 } from "@/lib/http/rate-limit";
 import { createRxNormLookup, type MedicationLookup } from "@/lib/medication/rxnorm";
-import { recordingMessenger, type Messenger } from "@/lib/notify/sms";
+import { refusingMessenger, twilioMessenger, type Messenger } from "@/lib/notify/sms";
 import { memoryCallStore, type CallStore } from "@/lib/postcall/record";
 import { readEnv, type ServerEnv } from "@/lib/server/env";
 import {
@@ -77,6 +77,15 @@ export function setServerDeps(next: ServerDeps | null): void {
   else delete holder[SHARED];
 }
 
+/**
+ * Without a provider the messenger refuses rather than pretending. The booking
+ * still stands and the agent tells the caller the front desk will confirm by
+ * phone, instead of promising a text that is never going to arrive.
+ */
+function messenger(env: ServerEnv): Messenger {
+  return env.sms ? twilioMessenger(env.sms) : refusingMessenger();
+}
+
 export function buildDeps(env: ServerEnv): ServerDeps {
   const redis = env.redis ? (new Redis(env.redis) as unknown as RedisLike & Redis) : null;
   return {
@@ -87,8 +96,7 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     firstDelivery: redis ? redisFirstDelivery(redis) : memoryFirstDelivery(),
     sessions: redis ? redisSessionOwners(redis) : memorySessionOwners(),
     medications: createRxNormLookup(),
-    // Texts are recorded, not sent, until a messaging provider is configured.
-    sms: recordingMessenger(),
+    sms: messenger(env),
     voice: createVoiceAgentClient(env.assemblyAiKey),
     hearing: createSecondHearingClient(env.assemblyAiKey),
     // A caller's own request cannot outlive its function, or the transcript it asked for

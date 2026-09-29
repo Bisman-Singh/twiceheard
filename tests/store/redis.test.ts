@@ -198,6 +198,7 @@ describe("first delivery", () => {
 });
 
 describe("who owns a call", () => {
+  const AT = Date.parse("2026-09-29T06:00:00Z");
   const cases: Array<[string, (clock: { now: number }) => SessionOwners]> = [
     ["over Redis", (clock) => redisSessionOwners(fakeRedis(clock).redis)],
     ["in memory", () => memorySessionOwners()],
@@ -205,34 +206,38 @@ describe("who owns a call", () => {
 
   for (const [where, build] of cases) {
     it(`gives the call to the first browser that claims it, ${where}`, async () => {
-      const clock = { now: Date.parse("2026-09-29T06:00:00Z") };
+      const clock = { now: AT };
       const owners = build(clock);
-      expect(await owners.claim("sess_1", "browser-a")).toBe(true);
+      expect(await owners.claim("sess_1", "browser-a", AT)).toBe(true);
       // The same browser may claim again, which is what makes a retry safe.
-      expect(await owners.claim("sess_1", "browser-a")).toBe(true);
-      expect(await owners.claim("sess_1", "browser-b")).toBe(false);
-      expect(await owners.claim("sess_2", "browser-b")).toBe(true);
-      expect(await owners.isOwner("sess_1", "browser-a")).toBe(true);
-      expect(await owners.isOwner("sess_1", "browser-b")).toBe(false);
+      expect(await owners.claim("sess_1", "browser-a", AT + 1000)).toBe(true);
+      expect(await owners.claim("sess_1", "browser-b", AT)).toBe(false);
+      expect(await owners.claim("sess_2", "browser-b", AT)).toBe(true);
+      // The first claim stands, with the time it was actually made.
+      expect(await owners.claimOf("sess_1")).toEqual({ owner: "browser-a", at: AT });
     });
 
     it(`never lets a question about a call make the asker its owner, ${where}`, async () => {
-      const clock = { now: Date.parse("2026-09-29T06:00:00Z") };
+      const clock = { now: AT };
       const owners = build(clock);
       // A call that came in over the phone was never claimed by any browser.
-      expect(await owners.isOwner("sess_phone", "browser-a")).toBe(false);
-      expect(await owners.isOwner("sess_phone", "browser-a")).toBe(false);
+      expect(await owners.claimOf("sess_phone")).toBeNull();
+      expect(await owners.claimOf("sess_phone")).toBeNull();
       // Asking did not take it, so the caller who really made it can still claim it.
-      expect(await owners.claim("sess_phone", "browser-b")).toBe(true);
+      expect(await owners.claim("sess_phone", "browser-b", AT)).toBe(true);
     });
   }
 
-  it("lets go of a call an hour after it was claimed", async () => {
-    const clock = { now: Date.parse("2026-09-29T06:00:00Z") };
+  it("lets go of the key an hour on, and the claim it hands back is dated", async () => {
+    const clock = { now: AT };
     const owners = redisSessionOwners(fakeRedis(clock).redis);
-    expect(await owners.claim("sess_1", "browser-a")).toBe(true);
+    expect(await owners.claim("sess_1", "browser-a", AT)).toBe(true);
+    expect(await owners.claimOf("sess_1")).toEqual({ owner: "browser-a", at: AT });
     clock.now += 61 * 60 * 1000;
-    expect(await owners.isOwner("sess_1", "browser-a")).toBe(false);
-    expect(await owners.claim("sess_1", "browser-b")).toBe(true);
+    expect(await owners.claimOf("sess_1")).toBeNull();
+    // The key is free again, but a claim made now is dated now, and `claimIsLive`
+    // measures that against the call's own start. An hour-old call cannot be taken.
+    expect(await owners.claim("sess_1", "browser-b", clock.now)).toBe(true);
+    expect(await owners.claimOf("sess_1")).toEqual({ owner: "browser-b", at: clock.now });
   });
 });

@@ -33,6 +33,9 @@ const askForget = (
 async function callAlreadyTaken(clinicId = "sunrise-family", overrides: Partial<ServerDeps> = {}) {
   const deps = testDeps(overrides);
   setServerDeps(deps);
+  // The browser claims while the call is live, which is before any record exists.
+  // Claiming after the chart is written is refused, so the order here is the real one.
+  await post(claim, "/api/call/claim", { sessionId: SESSION });
   await deps.calls.save(
     callRecord({ full_name: { value: PATIENT, status: "confirmed" } }, {}, { clinicId }),
   );
@@ -48,7 +51,6 @@ describe("POST /api/call/forget", () => {
   it("erases the caller's own call from the caller's page and from the clinic's desk alike", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const deps = await callAlreadyTaken();
-    await post(claim, "/api/call/claim", { sessionId: SESSION });
 
     const response = await askForget();
     expect(response.status).toBe(200);
@@ -130,6 +132,21 @@ describe("POST /api/call/forget", () => {
     expect(await expired.json()).toMatchObject({ error: "no_call_in_progress" });
 
     expect((await askForget({ sessionId: SESSION, extra: 1 })).status).toBe(400);
+    expect(await deps.calls.get(SESSION)).not.toBeNull();
+  });
+
+  it("refuses a record whose claim was not made while the call was running", async () => {
+    const deps = testDeps();
+    setServerDeps(deps);
+    await post(claim, "/api/call/claim", { sessionId: SESSION });
+    // The same browser, but the call it claimed started days earlier: an id read
+    // off a desk address is not a call anyone was on.
+    await deps.calls.save(
+      callRecord({}, {}, { startedAt: NOW.getTime() - 3 * 24 * 60 * 60 * 1000 }),
+    );
+
+    const response = await askForget();
+    expect(response.status).toBe(403);
     expect(await deps.calls.get(SESSION)).not.toBeNull();
   });
 });
