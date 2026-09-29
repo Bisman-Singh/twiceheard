@@ -58,7 +58,12 @@ export async function processSession(
 
   const timeline = timelineSchema.parse(await deps.fetchJson(timelineUrl));
   const events = callEvents(timeline);
-  const replay = replayChart(events, { country: clinic.country });
+  // The call's own start is the right stand-in clock for a tool event with no timestamp.
+  const replay = replayChart(
+    events,
+    { country: clinic.country },
+    timeline.started_at_unix_ms ?? deps.now().getTime(),
+  );
   const { verifications, hearing } = await secondHearing(
     replay.chart,
     artifact("audio"),

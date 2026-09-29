@@ -59,10 +59,18 @@ function describeFieldGrade(field: FieldGrade): string {
 }
 
 function describeIssue(issue: ReplayIssue): string {
-  if (issue.issue === "readback_not_spoken") return `${issue.field}: readback not spoken`;
-  if (issue.issue === "no_answer_after_readback")
-    return `${issue.field}: no answer to the readback`;
-  return `${issue.field}: caller said "${issue.callerSaid}"`;
+  switch (issue.issue) {
+    case "readback_not_spoken":
+      return `${issue.field}: readback not spoken`;
+    case "no_answer_after_readback":
+      return `${issue.field}: no answer to the readback`;
+    case "readback_interrupted":
+      return `${issue.field}: readback interrupted`;
+    case "one_yes_two_values":
+      return `${issue.field}: one yes shared with ${issue.alsoAnswered}`;
+    case "caller_did_not_agree":
+      return `${issue.field}: caller said "${issue.callerSaid}"`;
+  }
 }
 
 function describeOutcome(

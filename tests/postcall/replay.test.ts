@@ -270,3 +270,75 @@ describe("timeline parsing", () => {
     expect(callEvents(noConfidence)).toEqual([{ kind: "caller", text: "hello", confidence: null }]);
   });
 });
+
+describe("a caller who does not follow the script", () => {
+  const nameReadback = "I have your name as Arjun Mehta. Is that right?";
+
+  it("will not let one yes confirm two values at once", () => {
+    const now = { at: Date.parse("2026-09-29T06:00:00Z") };
+    const replay = replayChart(
+      [
+        caller("I am Arjun Mehta, born on the twelfth of March nineteen ninety"),
+        save("full_name", "Arjun Mehta", "heard", now),
+        save("date_of_birth", "1990-03-12", "heard", now),
+        agent(`${nameReadback} I have your date of birth as 12 March 1990. Is that right?`),
+        caller("Yes"),
+        save("full_name", "Arjun Mehta", "confirmed", now),
+        save("date_of_birth", "1990-03-12", "confirmed", now),
+      ],
+      context,
+    );
+    expect(replay.chart.full_name.status).toBe("confirmed");
+    // The same word cannot answer for the second field as well.
+    expect(replay.chart.date_of_birth.status).toBe("heard");
+    expect(replay.issues).toEqual([
+      { field: "date_of_birth", issue: "one_yes_two_values", alsoAnswered: "full_name" },
+    ]);
+  });
+
+  it("will not accept a yes to a readback the caller talked over", () => {
+    const replay = replayChart(
+      [
+        caller("Arjun Mehta"),
+        save("full_name", "Arjun Mehta", "heard"),
+        { kind: "agent", text: nameReadback, interrupted: true } as CallEvent,
+        caller("yes yes"),
+        save("full_name", "Arjun Mehta", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.full_name.status).toBe("heard");
+    expect(replay.issues).toEqual([{ field: "full_name", issue: "readback_interrupted" }]);
+  });
+
+  it("does not forget a readback because the agent reported the value twice", () => {
+    const replay = replayChart(
+      [
+        caller("Arjun Mehta"),
+        save("full_name", "Arjun Mehta", "heard"),
+        agent(nameReadback),
+        caller("Yes, that's right."),
+        // The model reports the same value again in the turn it confirms it.
+        save("full_name", "Arjun Mehta", "heard"),
+        save("full_name", "Arjun Mehta", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.full_name.status).toBe("confirmed");
+    expect(replay.issues).toEqual([]);
+  });
+
+  it("dates a tool event with no timestamp from the call, not from 1970", () => {
+    const replay = replayChart(
+      [
+        caller("twelfth of March nineteen ninety"),
+        save("date_of_birth", "1990-03-12", "heard", { at: null }),
+      ],
+      context,
+      Date.parse("2026-09-29T06:00:00Z"),
+    );
+    // With 1970 as "now" a real date of birth reads as impossible and vanishes silently.
+    expect(replay.chart.date_of_birth.value).toBe("1990-03-12");
+    expect(replay.chart.date_of_birth.status).toBe("heard");
+  });
+});

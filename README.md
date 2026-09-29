@@ -11,7 +11,7 @@ describes what runs locally.
 
 ## Every value is heard twice
 
-A field is green only when two independent hearings agree.
+A field is green only when both hearings agree.
 
 **The first hearing is the live conversation.** When the agent hears a value it calls `save_field`
 with status `heard`. The server normalises the value, builds the readback sentence itself, and

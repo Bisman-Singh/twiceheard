@@ -66,8 +66,13 @@ export function isFieldId(value: string): value is FieldId {
 
 export type Normalised = { ok: true; value: FieldValue } | { ok: false; problem: string };
 
+/**
+ * "No" in the words callers actually use, including Hindi written in Latin letters.
+ * A caller who answers the allergies question with "nahi" must not be charted as
+ * allergic to a word, which is what happened before the romanised forms were here.
+ */
 const NONE =
-  /^(none|no|nil|nothing|no known allergies|no allergies|no medications?|कोई नहीं|नहीं)$/i;
+  /^(none|no|nil|nothing|nothing at all|no known allergies|no allergies|no medications?|nahi|nahin|nahi hai|koi nahi|kuch nahi|कोई नहीं|नहीं|कुछ नहीं)$/i;
 const MAX_TEXT = 300;
 const MAX_ITEMS = 20;
 const MAX_AGE_YEARS = 120;

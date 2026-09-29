@@ -1,19 +1,25 @@
 /**
- * How the agent decides the caller has stopped talking.
+ * How the agent listens, and why nothing here is tuned for speed.
  *
- * Only one setting, deliberately. The platform's end of turn detection is
- * semantic and adapts to each speaker's pace, and its own guidance is to leave
- * it alone. Pinning fixed silence thresholds here replaced that with a worse
- * rule: on a measured call it made the median gap between a caller finishing
- * and the agent answering longer, not shorter. The lever that is meant to be
- * pulled for speed is the transcription mode, so that is the only one pulled.
+ * Measured on a real call, the gap between a caller finishing and the agent
+ * answering was a median of 3.55 s, which is far slower than a phone call should
+ * feel. Two attempts to fix it from this file both made the product worse:
  *
- * A clinic intake is also the wrong place to be aggressive about cutting a
- * caller off. People read a phone number with a pause in the middle of it.
+ * Pinning `min_silence` and `max_silence` turned off the platform's adaptive,
+ * entity-aware end of turn detection, which is the feature that waits for a whole
+ * phone number instead of cutting in after the first pause. The measured median got
+ * longer, not shorter.
+ *
+ * `transcription_mode: "min_latency"` is worse than slow. It is documented as the
+ * least patient setting, and it drops the barge-in guard to zero, so any "mm-hm" from
+ * the caller interrupts a readback in progress. A readback the caller talked over is
+ * exactly what this product then refuses to count, so the fast setting would have
+ * lowered the grade of correct calls. The platform's own guidance for capturing a
+ * value you cannot get wrong is the opposite: be more patient, not less.
+ *
+ * So the listening settings are the platform's defaults, deliberately, and the
+ * latency has to come out of the turn itself rather than out of the caller's pauses.
  */
-export const LISTENING = {
-  /** Finalise the transcript as soon as it is stable, rather than as late as possible. */
-  transcription_mode: "min_latency",
-} as const;
+export const LISTENING = {} as const;
 
 export type Listening = typeof LISTENING;

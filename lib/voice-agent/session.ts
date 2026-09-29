@@ -1,5 +1,5 @@
 import type { Clinic } from "@/lib/clinic/config";
-import { LISTENING, type Listening } from "@/lib/voice-agent/listening";
+import { LISTENING } from "@/lib/voice-agent/listening";
 import { greeting, keyterms, systemPrompt, transcriptionPrompt } from "@/lib/voice-agent/prompt";
 import { TOOL_SPECS } from "@/lib/voice-agent/tools";
 
@@ -22,7 +22,6 @@ export interface InlineSession {
     keyterms: string[];
     transcription_prompt: string;
     voice_focus: "near-field";
-    transcription_mode: Listening["transcription_mode"];
   };
   tools: Array<{
     type: "function";

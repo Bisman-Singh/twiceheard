@@ -38,7 +38,8 @@ export async function POST(request: Request): Promise<Response> {
     const delivery = deliverySchema.safeParse(safeJson(raw));
     if (!delivery.success) throw new HttpError(400, "invalid_request");
     const fresh = await deps.firstDelivery(delivery.data.event_id);
-    const sessionId = delivery.data.session?.session_id;
+    // The platform has sent this under both names; reading only one silently drops a call.
+    const sessionId = delivery.data.session?.session_id ?? delivery.data.call?.session_id;
     if (delivery.data.event === "session.completed" && sessionId) {
       after(async () => {
         // A repeat delivery is skipped only once the call really is charted. The platform

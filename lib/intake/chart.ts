@@ -79,7 +79,12 @@ export function saveField(chart: Chart, input: SaveFieldInput, context: FieldCon
     return { chart, reply: { ok: false, note } };
   }
   const record = chart[input.field];
-  if (record.status === "unresolved") return { chart, reply: LEAVE_IT };
+  // A field given up on is not closed for good. A caller who offers a fresh value, often
+  // after the agent asks one more time, reopens it; only a bare "confirmed" is refused,
+  // because there is nothing left standing to confirm.
+  if (record.status === "unresolved" && input.status !== "heard") {
+    return { chart, reply: LEAVE_IT };
+  }
   if (input.status === "unresolved") return giveUp(chart, record, context.now);
 
   const parsed = normalise(FIELDS[input.field], input.value, context);
@@ -93,7 +98,9 @@ function hear(chart: Chart, record: FieldRecord, value: FieldValue, now: Date): 
   if (record.status !== "missing" && sameValue(record.value, value)) {
     return { chart, reply: repeatReply(record, value) };
   }
-  const attempts = record.attempts + 1;
+  // Reopening a field the agent had given up on starts the tries again, so one more
+  // attempt is possible without immediately falling back through the give-up path.
+  const attempts = record.status === "unresolved" ? 1 : record.attempts + 1;
   if (attempts > MAX_ATTEMPTS) return giveUp(chart, { ...record, value, attempts }, now);
   const next = update(chart, record, { value, status: "heard", attempts }, now);
   return { chart: next, reply: spec.critical ? { ok: true, say: readback(spec, value) } : SAVED };

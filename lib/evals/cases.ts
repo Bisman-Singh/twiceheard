@@ -526,6 +526,56 @@ export const EVAL_CASES: readonly EvalCase[] = [
     },
   },
   {
+    kind: "grade",
+    id: "readback-the-caller-talked-over",
+    category: "readback",
+    checks: "A yes to a readback the caller cut in on, so they never heard the whole value.",
+    input: {
+      kind: "timeline",
+      events: [
+        callerTurn("My name is Priya Nair"),
+        saveFieldCall("full_name", "Priya Nair", "heard"),
+        { kind: "agent", text: NAME_READBACK, interrupted: true },
+        callerTurn("Yes, that's correct."),
+        saveFieldCall("full_name", "Priya Nair", "confirmed"),
+      ],
+    },
+    caller: [said("my name is Priya Nair", CLEAR)],
+    expected: {
+      fields: [{ field: "full_name", grade: "amber", reasons: [NOT_CONFIRMED] }],
+      issues: [{ field: "full_name", issue: "readback_interrupted" }],
+      ready: false,
+    },
+  },
+  {
+    kind: "grade",
+    id: "one-yes-two-readbacks",
+    category: "readback",
+    checks: "Two values read back in one breath, answered with a single yes.",
+    input: {
+      kind: "timeline",
+      events: [
+        callerTurn("I am Priya Nair and my number is 98765 43210"),
+        saveFieldCall("full_name", "Priya Nair", "heard"),
+        saveFieldCall("phone", "98765 43210", "heard"),
+        agentTurn(`${NAME_READBACK} ${PHONE_READBACK}`),
+        callerTurn("Yes."),
+        saveFieldCall("full_name", "Priya Nair", "confirmed"),
+        saveFieldCall("phone", "98765 43210", "confirmed"),
+      ],
+    },
+    caller: [said("i am Priya Nair and my number is 98765 43210", CLEAR)],
+    expected: {
+      fields: [
+        { field: "full_name", grade: "green", reasons: [] },
+        { field: "phone", grade: "amber", reasons: [NOT_CONFIRMED] },
+      ],
+      // One word of agreement answers one readback, not both.
+      issues: [{ field: "phone", issue: "one_yes_two_values", alsoAnswered: "full_name" }],
+      ready: false,
+    },
+  },
+  {
     kind: "match",
     id: "medication-spelling-corrected",
     category: "medication",

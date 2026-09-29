@@ -48,7 +48,8 @@ one that was measured, and the last slide says what is not there.
 - 23 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
   readback rule and the medication lookup. All 23 pass.
 - Three whole calls against the live Voice Agent API. In the third, the chart came out 6 verified, 1
-  to check, 0 missing, with an appointment booked, at a median first-audio latency of 188 ms.
+  to check, 0 missing, with an appointment booked. Measured from the two channels of the call's
+  own recording, the median gap between the caller finishing and the agent speaking was 2.84 s.
 - Two defects found and fixed: a yes that could confirm the next field, and a number written as digits
   where the agent had words to say.
 

@@ -24,7 +24,7 @@ from the clinic's own diary, books one, and hands over a chart in which every fi
 verified, to check, or missing, with the reason written out for a person to read.
 
 The output is not a transcript and not a summary. It is a graded chart. A green line means two
-independent hearings agreed. Anything else carries the reason it is not green, so the desk knows
+hearings agreed. Anything else carries the reason it is not green, so the desk knows
 exactly which caller to ring back and about what.
 
 The caller may speak English, Hindi or a mix of the two. The agent understands all of it and replies
@@ -47,6 +47,14 @@ agent said. The caller's last words before the confirmation must be an agreement
 after the readback they are supposed to answer, so a yes given to one field cannot confirm the next.
 A confirmation that fails any of those tests is replayed as a plain `heard`, and the reason is kept
 for the front desk.
+
+**The two hearings are not independent, and we say so.** Both run on the same vendor's model
+family over the same audio, so their errors will be correlated, and correlated exactly where it
+matters: a strong accent, a noisy line, a voice affected by illness. What the second pass adds is
+real but narrower than independence. It sees the whole recording rather than a stream, decodes in
+batch, has the caller and the agent on separate channels, and returns a confidence for every word.
+It catches what streaming gets wrong. Making the claim true would mean a second vendor's model,
+which is a change worth making and has not been made.
 
 **The second hearing happens after the call.** The voice platform stores the recording. Twiceheard
 sends its link to AssemblyAI's pre-recorded transcription API, which transcribes it again on its own,
@@ -129,7 +137,9 @@ twin with the same contract, so the whole product runs end to end with no networ
 - Six whole calls were made against the live Voice Agent API, driven through the product's own
   endpoints by a synthetic caller using speech synthesis with an Indian English voice. The last one
   came out 7 verified, 0 to check and 0 missing, with an appointment booked for a named doctor. An
-  earlier run reported a median first-audio latency of 188 ms.
+  median gap between a caller finishing and the agent speaking, measured from the two channels of
+  the call's own recording, was 2.84 s across four live calls, worst case 15.4 s. That is slower than
+  any product in this market and it is listed below as the main thing still wrong.
 - One of those calls was made from a real browser and recorded end to end: the microphone, the audio
   worklet, the tool relay through this app's own endpoints, and the chart at the end.
 - In the first live run the model reported a medication as confirmed when the caller had not agreed

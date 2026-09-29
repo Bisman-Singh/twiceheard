@@ -159,3 +159,30 @@ describe("saveField", () => {
     expect(chart).toBe(start);
   });
 });
+
+describe("a field the agent gave up on", () => {
+  it("reopens when the caller offers a fresh value, so a booking is still possible", () => {
+    const context = { country: "IN" as const, now: new Date("2026-09-29T06:00:00Z") };
+    let chart = emptyChart();
+    // Three unusable numbers and the field is given up on.
+    for (const attempt of ["1", "22", "333", "4444"]) {
+      chart = saveField(chart, { field: "phone", value: attempt, status: "heard" }, context).chart;
+    }
+    expect(chart.phone.status).toBe("unresolved");
+
+    // A caller who then says it properly must not be stuck for the rest of the call.
+    const reopened = saveField(
+      chart,
+      { field: "phone", value: "98765 43210", status: "heard" },
+      context,
+    );
+    expect(reopened.chart.phone.status).toBe("heard");
+    expect(reopened.reply.say).toContain("nine eight seven six five");
+    const confirmed = saveField(
+      reopened.chart,
+      { field: "phone", value: "98765 43210", status: "confirmed" },
+      context,
+    );
+    expect(confirmed.chart.phone.status).toBe("confirmed");
+  });
+});
