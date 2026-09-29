@@ -28,6 +28,7 @@ import {
 } from "@/lib/store/redis";
 import { createSecondHearingClient, type SecondHearingClient } from "@/lib/verify/transcribe";
 import { createVoiceAgentClient, type VoiceAgentClient } from "@/lib/voice-agent/client";
+import { offlineSecondHearing, offlineVoiceAgentClient } from "@/lib/voice-agent/offline";
 
 /**
  * Everything a route needs, built once per server instance.
@@ -101,6 +102,31 @@ function messenger(env: ServerEnv): Messenger {
  */
 export const REDIS_RETRY = { retries: 1, backoff: () => 50 } as const;
 
+/**
+ * The voice platform and the second hearing, real or played by this repository.
+ *
+ * A production deployment always gets the real ones, whatever its environment
+ * says, so no configuration mistake can put a fake in front of a caller. The
+ * check is the deployment environment rather than NODE_ENV, because the browser
+ * end to end test runs the production build on purpose and has to select this.
+ */
+function platform(env: ServerEnv): Pick<ServerDeps, "voice" | "hearing" | "quickHearing"> {
+  if (env.offlinePlatform && process.env.VERCEL_ENV !== "production") {
+    return {
+      voice: offlineVoiceAgentClient(),
+      hearing: offlineSecondHearing(),
+      quickHearing: offlineSecondHearing(),
+    };
+  }
+  return {
+    voice: createVoiceAgentClient(env.assemblyAiKey),
+    hearing: createSecondHearingClient(env.assemblyAiKey),
+    // A caller's own request cannot outlive its function, or the transcript it asked
+    // for would be left behind at the transcriber with nothing to delete it.
+    quickHearing: createSecondHearingClient(env.assemblyAiKey, fetch, { deadlineMs: 45_000 }),
+  };
+}
+
 export function buildDeps(env: ServerEnv): ServerDeps {
   const redis = env.redis
     ? (new Redis({ ...env.redis, retry: REDIS_RETRY }) as unknown as RedisLike & Redis)
@@ -114,11 +140,10 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     sessions: redis ? redisSessionOwners(redis) : memorySessionOwners(),
     medications: createRxNormLookup(),
     sms: messenger(env),
-    voice: createVoiceAgentClient(env.assemblyAiKey),
-    hearing: createSecondHearingClient(env.assemblyAiKey),
+    ...platform(env),
     // A caller's own request cannot outlive its function, or the transcript it asked for
     // would be left behind at the transcriber with nothing to delete it.
-    quickHearing: createSecondHearingClient(env.assemblyAiKey, fetch, { deadlineMs: 45_000 }),
+
     callStarts: redis
       ? createSharedRateLimiter(redis, CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs)
       : new RateLimiter(CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs),

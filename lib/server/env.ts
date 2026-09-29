@@ -25,6 +25,12 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   KV_REST_API_URL: z.string().url().optional(),
   KV_REST_API_TOKEN: z.string().min(1).optional(),
+  /**
+   * Runs the product against an in-repo stand-in for the voice platform, so the
+   * browser end to end test needs no key and spends nothing. Refused in
+   * production, in `buildDeps`, so it cannot be switched on in front of a caller.
+   */
+  TWICEHEARD_OFFLINE_PLATFORM: z.literal("1").optional(),
   /** All three together, or none: a booking text needs an account, a token and a number. */
   TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
@@ -76,6 +82,8 @@ export interface ServerEnv {
   agentId: string | undefined;
   redis: { url: string; token: string } | null;
   sms: { accountSid: string; authToken: string; from: string } | null;
+  /** True only outside production; see `TWICEHEARD_OFFLINE_PLATFORM`. */
+  offlinePlatform: boolean;
 }
 
 export class EnvError extends Error {
@@ -103,6 +111,7 @@ export function readEnv(source: Record<string, string | undefined>): ServerEnv {
     webhookSecret: env.TWICEHEARD_WEBHOOK_SECRET,
     agentId: env.TWICEHEARD_AGENT_ID,
     redis: readRedis(env),
+    offlinePlatform: env.TWICEHEARD_OFFLINE_PLATFORM === "1",
     sms: twilio
       ? {
           accountSid: twilio.TWILIO_ACCOUNT_SID,

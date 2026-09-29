@@ -55,7 +55,9 @@ jobs:
       - name: Browser end to end test
         run: npm run e2e
         env:
-          # The platform's socket is played by the test, so these need to parse, not to work.
+          # The platform is played by this repository here, so the run needs no key
+          # and spends nothing. These only have to parse.
+          TWICEHEARD_OFFLINE_PLATFORM: "1"
           ASSEMBLYAI_API_KEY: ci-placeholder-not-a-real-key
           TWICEHEARD_SECRET: ci-placeholder-secret-at-least-32-chars
           TWICEHEARD_WEBHOOK_SECRET: ci-placeholder-webhook-at-least-32-chars

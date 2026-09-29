@@ -27,6 +27,7 @@ export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
       agentId: "agent-sunrise",
       redis: null,
       sms: null,
+      offlinePlatform: false,
     },
     clinics: demoRegistry("agent-sunrise"),
     intakes: memoryIntakeStore(() => NOW.getTime()),

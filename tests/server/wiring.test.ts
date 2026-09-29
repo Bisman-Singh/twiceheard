@@ -36,6 +36,7 @@ describe("readEnv", () => {
       agentId: undefined,
       redis: null,
       sms: null,
+      offlinePlatform: false,
     });
     const vercel = readEnv({
       ...base,
@@ -127,6 +128,27 @@ describe("server deps", () => {
       }),
     );
     expect(shared.callStarts).toBeInstanceOf(SharedRateLimiter);
+  });
+
+  it("plays the platform itself when asked to, and never in production", async () => {
+    // The browser end to end test drives a whole call with no key and no credit.
+    // The guard is what keeps that out of production: a fake in front of a caller
+    // would be the worst possible configuration mistake.
+    const offline = { ...base, TWICEHEARD_OFFLINE_PLATFORM: "1" };
+    expect(readEnv(offline).offlinePlatform).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(
+      await buildDeps(readEnv(offline)).voice.mintToken({
+        expiresInSeconds: 60,
+        maxSessionSeconds: 900,
+      }),
+    ).toBe("offline-token");
+    // A production deployment gets the real client no matter what the switch says.
+    vi.stubEnv("VERCEL_ENV", "production");
+    const real = buildDeps(readEnv(offline));
+    await expect(
+      real.voice.mintToken({ expiresInSeconds: 60, maxSessionSeconds: 900 }),
+    ).rejects.toThrow();
   });
 
   it("gives Redis one quick retry rather than the client's six slow ones", () => {
