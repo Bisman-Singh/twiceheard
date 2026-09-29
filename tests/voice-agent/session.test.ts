@@ -29,6 +29,19 @@ describe("inlineSession", () => {
     expect((saveField?.parameters as { required: string[] }).required).toContain("intake_id");
   });
 
+  it("listens for a short pause, not a long one, so a turn feels like a phone call", () => {
+    // With the platform's defaults a real call answered a median of 3.55 s after the
+    // caller stopped, most of it the one second of silence the default waits for.
+    expect(session.input.transcription_mode).toBe("min_latency");
+    // The platform's end of turn detection is semantic and adapts to the speaker. Pinning
+    // fixed silence thresholds over it measured slower, so nothing here overrides it.
+    expect(session.input).not.toHaveProperty("turn_detection");
+    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });
+    // The phone and the browser hear the same way, or one of them drifts.
+    expect(stored.input.transcription_mode).toBe(session.input.transcription_mode);
+    expect(stored.input).not.toHaveProperty("turn_detection");
+  });
+
   it("assumes a caller close to the microphone, unlike a phone line", () => {
     expect(session.input.voice_focus).toBe("near-field");
     const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });

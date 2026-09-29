@@ -1,4 +1,5 @@
 import type { Clinic } from "@/lib/clinic/config";
+import { LISTENING, type Listening } from "@/lib/voice-agent/listening";
 import { greeting, keyterms, systemPrompt, transcriptionPrompt } from "@/lib/voice-agent/prompt";
 import { httpTools, type HttpTool } from "@/lib/voice-agent/tools";
 
@@ -20,6 +21,7 @@ export interface AgentBody {
     keyterms: string[];
     transcription_prompt: string;
     voice_focus: "far-field";
+    transcription_mode: Listening["transcription_mode"];
   };
   tools: HttpTool[];
 }
@@ -42,6 +44,7 @@ export function agentBody(clinic: Clinic, deployment: Deployment): AgentBody {
       transcription_prompt: transcriptionPrompt(clinic),
       // Phone lines and laptop microphones both pick up the room; suppress it.
       voice_focus: "far-field",
+      ...LISTENING,
     },
     tools: httpTools(deployment.baseUrl, clinic.id, deployment.toolKey),
   };
