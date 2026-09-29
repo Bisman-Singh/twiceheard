@@ -2,10 +2,22 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 
+const DESCRIPTION =
+  "Clinic intake by phone. A voice agent takes the call in English, Hindi or Hinglish, reads every critical detail back, books the appointment, and hands the clinic a chart where each field is verified or flagged.";
+
 export const metadata: Metadata = {
   title: { default: "Twiceheard", template: "%s · Twiceheard" },
-  description:
-    "Clinic intake by phone. A voice agent takes the call in English, Hindi or Hinglish, reads every critical detail back, books the appointment, and hands the clinic a chart where each field is verified or flagged.",
+  description: DESCRIPTION,
+  // Without these a link shared in a message previews as the bare host name.
+  // Open Graph does not inherit the page title or description, so both are
+  // repeated here. No image is declared, so no absolute base URL is needed.
+  openGraph: {
+    type: "website",
+    siteName: "Twiceheard",
+    locale: "en_IN",
+    title: "Twiceheard",
+    description: DESCRIPTION,
+  },
 };
 
 /** Every page renders per request so the CSP nonce from `proxy.ts` applies. */
