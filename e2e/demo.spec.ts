@@ -57,7 +57,13 @@ test("@live a whole call, recorded, ending in the chart the clinic receives", as
   const chart = page.getByRole("region", { name: "Your chart" });
   await expect(chart).toBeVisible({ timeout: 180_000 });
   await expect(chart).toContainText("verified");
-  await page.waitForTimeout(6000);
+
+  // Hold on the chart, then on the line that did not come out green, because that
+  // line is the whole point and it sits below the fold.
+  await chart.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(5000);
+  await page.getByText("Current medications").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(14_000);
 
   const counts = await chart.textContent();
   console.warn("chart:", counts?.slice(0, 400));

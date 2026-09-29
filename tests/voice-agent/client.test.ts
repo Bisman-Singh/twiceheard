@@ -120,3 +120,42 @@ describe("createVoiceAgentClient", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("finding a session on whichever host holds it", () => {
+  it("asks the global host first, then the regional one, because a phone call lives there", async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.startsWith(AGENTS_BASE_URL)) {
+        return new Response(JSON.stringify({ code: "not_found" }), { status: 404 });
+      }
+      return json({ id: "call_1", agent_id: "a1", status: "completed", artifacts: [] });
+    });
+    const client = createVoiceAgentClient("key", fetchImpl as unknown as typeof fetch);
+    expect((await client.getSession("call_1")).id).toBe("call_1");
+    expect(calls).toEqual([
+      `${AGENTS_BASE_URL}/v1/sessions/call_1`,
+      `${PHONE_BASE_URL}/v1/sessions/call_1`,
+    ]);
+  });
+
+  it("does not go looking a second time when the first host answers", async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      return json({ id: "sess_1", agent_id: "a1", status: "completed", artifacts: [] });
+    });
+    const client = createVoiceAgentClient("key", fetchImpl as unknown as typeof fetch);
+    expect((await client.getSession("sess_1")).id).toBe("sess_1");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("passes on a failure that is not the session being unknown", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
+    );
+    const client = createVoiceAgentClient("key", fetchImpl as unknown as typeof fetch);
+    await expect(client.getSession("sess_1")).rejects.toMatchObject({ status: 401 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});

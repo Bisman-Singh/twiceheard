@@ -102,14 +102,21 @@ export function clientAddress(request: Request): string {
   return first || "unknown";
 }
 
+/** Errors whose message is about the code, not about what the code was handling. */
+const DEBUGGABLE = new Set(["TypeError", "ReferenceError", "SyntaxError", "RangeError"]);
+
 export function jsonError(error: unknown): Response {
   if (error instanceof HttpError) {
     return Response.json({ error: error.code, message: error.message }, { status: error.status });
   }
-  // The kind only. A store or schema error can carry the command it failed on, and that
-  // command holds the caller's chart.
+  // A store or schema error can carry the command it failed on, and that command holds
+  // the caller's chart, so only the kind is logged for those. A programming error's
+  // message describes code rather than data, and without it a fault is undebuggable.
+  const kind = error instanceof Error ? error.name : "unknown";
+  const describesCode = DEBUGGABLE.has(kind) && error instanceof Error;
   console.error("unhandled api error", {
-    kind: error instanceof Error ? error.name : "unknown",
+    kind,
+    ...(describesCode ? { message: error.message.slice(0, 200) } : {}),
   });
   return Response.json(
     { error: "internal_error", message: "Something went wrong." },

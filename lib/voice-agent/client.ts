@@ -117,9 +117,16 @@ export function createVoiceAgentClient(
       );
     },
     async getSession(sessionId) {
-      return sessionSchema.parse(
-        await call(`${PHONE_BASE_URL}/v1/sessions/${encodeURIComponent(sessionId)}`),
-      );
+      // A call that came in over the phone is kept on the regional host, and one started
+      // from a browser on the global one. Which host holds a session is not something the
+      // id promises, so the other is tried when the first says it has never heard of it.
+      const id = encodeURIComponent(sessionId);
+      try {
+        return sessionSchema.parse(await call(`${AGENTS_BASE_URL}/v1/sessions/${id}`));
+      } catch (error) {
+        if (!(error instanceof VoiceAgentApiError) || error.status !== 404) throw error;
+        return sessionSchema.parse(await call(`${PHONE_BASE_URL}/v1/sessions/${id}`));
+      }
     },
     async importPhoneNumber(phoneNumber, terminationUri, idempotencyKey) {
       await call(`${PHONE_BASE_URL}/v1/phone-numbers/import`, {

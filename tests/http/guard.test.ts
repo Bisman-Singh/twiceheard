@@ -105,6 +105,12 @@ describe("jsonError", () => {
     const thrownString = jsonError("not an error at all");
     expect(thrownString.status).toBe(500);
     expect(JSON.stringify(spy.mock.calls)).toContain("unknown");
+
+    // A programming error's message is about the code, so it is kept: without it a fault
+    // in production is undebuggable. A store or schema error's message is about the data.
+    spy.mockClear();
+    jsonError(new TypeError("cannot read properties of undefined"));
+    expect(JSON.stringify(spy.mock.calls)).toContain("cannot read properties of undefined");
     spy.mockRestore();
   });
 });
