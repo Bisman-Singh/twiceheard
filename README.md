@@ -50,20 +50,26 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
-`/` explains the product. `/call` is the browser call for the demo clinic.
+`/` explains the product. `/call` is the browser call for the demo clinic. `/desk` is the clinic's
+side: sign in with that clinic's code and every finished call is listed, newest first, with the
+chart behind each one. `GET /api/health` reports whether the environment parsed and whether the
+stores are shared, and nothing else.
+
+The desk code is derived from `TWICEHEARD_SECRET`, so it changes when that secret changes and one
+clinic's code says nothing about another's.
 
 ### Environment variables
 
 `lib/server/env.ts` validates the environment once, at first use, and nothing else reads
 `process.env`. Put values in `.env.local`, which is ignored by git. Never commit a value.
 
-| Variable                                                | Required                   | What it is for                                                                                                          |
-| ------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `ASSEMBLYAI_API_KEY`                                    | yes                        | The Voice Agent API and the transcription API. Server side only.                                                        |
-| `TWICEHEARD_SECRET`                                     | yes, 32 characters or more | Derives each clinic's tool key, signs the browser call grant, and names the browser that holds one.                     |
-| `TWICEHEARD_WEBHOOK_SECRET`                             | yes, 32 characters or more | Verifies the HMAC signature on webhook deliveries. Set the same value on the subscription.                              |
-| `TWICEHEARD_AGENT_ID`                                   | no                         | The stored agent that answers for the demo clinic. Without it, a browser call configures the same agent inline instead. |
-| `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` | no                         | Shared stores. `KV_REST_API_URL` and `KV_REST_API_TOKEN` are accepted as aliases.                                       |
+| Variable                                                | Required                   | What it is for                                                                                                                         |
+| ------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSEMBLYAI_API_KEY`                                    | yes                        | The Voice Agent API and the transcription API. Server side only.                                                                       |
+| `TWICEHEARD_SECRET`                                     | yes, 32 characters or more | Derives each clinic's tool key and desk code, signs the browser call grant and the desk session, and names the browser that holds one. |
+| `TWICEHEARD_WEBHOOK_SECRET`                             | yes, 32 characters or more | Verifies the HMAC signature on webhook deliveries. Set the same value on the subscription.                                             |
+| `TWICEHEARD_AGENT_ID`                                   | no                         | The stored agent that answers for the demo clinic. Without it, a browser call configures the same agent inline instead.                |
+| `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` | no                         | Shared stores. `KV_REST_API_URL` and `KV_REST_API_TOKEN` are accepted as aliases.                                                      |
 
 Without Redis the app runs on in-memory stores. That is right for a laptop and wrong for serverless,
 where each instance would keep its own copy.
@@ -75,18 +81,20 @@ handlers do the same work. The wording, the tools and the rules are identical to
 
 ### Scripts
 
-| Command                                   | What it does                                                                                               |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                             | Next.js dev server on port 3000.                                                                           |
-| `npm run build` / `npm start`             | Production build and server.                                                                               |
-| `npm test`                                | The test suite.                                                                                            |
-| `npm run test:watch`                      | The suite in watch mode.                                                                                   |
-| `npm run test:coverage`                   | The suite with coverage and the thresholds enforced.                                                       |
-| `npm run typecheck`                       | `tsc --noEmit`.                                                                                            |
-| `npm run lint` / `npm run lint:fix`       | ESLint.                                                                                                    |
-| `npm run format` / `npm run format:check` | Prettier.                                                                                                  |
-| `npm run verify`                          | Typecheck, lint, format check, coverage and the production build, in that order.                           |
-| `node scripts/smoke-call.mjs <outDir>`    | One synthetic call against the live Voice Agent API. It reads the key from `.env.local` and spends credit. |
+| Command                                    | What it does                                                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                              | Next.js dev server on port 3000.                                                                               |
+| `npm run build` / `npm start`              | Production build and server.                                                                                   |
+| `npm test`                                 | The test suite.                                                                                                |
+| `npm run test:watch`                       | The suite in watch mode.                                                                                       |
+| `npm run test:coverage`                    | The suite with coverage and the thresholds enforced.                                                           |
+| `npm run typecheck`                        | `tsc --noEmit`.                                                                                                |
+| `npm run lint` / `npm run lint:fix`        | ESLint.                                                                                                        |
+| `npm run format` / `npm run format:check`  | Prettier.                                                                                                      |
+| `npm run verify`                           | Typecheck, lint, format check, coverage and the production build, in that order.                               |
+| `npm run e2e`                              | The browser call in a real Chromium, with a synthetic microphone and the platform's socket played by the test. |
+| `node scripts/smoke-call.mjs <outDir>`     | One synthetic call against the live Voice Agent API. It reads the key from `.env.local` and spends credit.     |
+| `node scripts/e2e-call.mjs <url> <outDir>` | One whole call driven through the running app against the live API, ending in the graded chart. Spends credit. |
 
 ## Tests and the coverage bar
 
@@ -98,8 +106,13 @@ thresholds of **100% statements, 100% branches, 100% functions and 100% lines** 
 `npm run test:coverage` fails the run if any metric falls below that, so an untested branch anywhere
 fails the build.
 
-CI runs the same gate on every push and pull request to `main`, and adds a gitleaks scan over the full
-history, `npm audit --audit-level=high`, and CodeQL with the `security-and-quality` queries.
+`npm run e2e` is separate from that gate. It drives the real browser: Chromium opens a synthetic
+microphone, the audio worklet runs, each tool call goes to this app's own endpoint and comes back,
+and the platform's socket is answered by the test so the run is the same every time.
+
+CI runs the same gate on every push and pull request to `main`, then the browser test, and adds a
+gitleaks scan over the full history, `npm audit --audit-level=high`, and CodeQL with the
+`security-and-quality` queries.
 
 TypeScript is strict, with `noUncheckedIndexedAccess`, `noUnusedLocals` and `noFallthroughCasesInSwitch`
 on. ESLint bans `any`, non-null assertions and `console.log`, and caps complexity, nesting depth and
@@ -107,9 +120,6 @@ function length.
 
 ## What is not built yet
 
-- **No clinic dashboard.** The call record is written and can be listed per clinic
-  (`CallStore.list`), but no page reads it. The only view of a finished chart today is the one shown
-  back to the caller who just made the call.
 - **No text messages are sent.** `lib/notify/sms.ts` defines the messenger interface and the booking
   message, and `lib/server/deps.ts` wires the recording fake. A booking records the text it would send
   and reports success. No provider is connected.
@@ -121,9 +131,8 @@ function length.
   `bindPhoneNumber`, but only the tests call them. There is no route, script or command that sets up a
   deployment, and there is no live phone number.
 - **No deletion endpoint.** Callers cannot ask the app to delete a record. See `docs/privacy.md`.
-- **The coverage gate is not green at the time of writing.** Three of the newest browser-call modules
-  still have uncovered branches: `app/api/call/result/route.ts`, `components/call/use-call-result.ts`
-  and the session owner store in `lib/store/redis.ts`.
+- **One clinic code per clinic, and no staff accounts.** The desk signs in with a code derived from
+  the server secret, so there is no per-person login, no roles and no audit of who looked at what.
 
 ## AI disclosure
 
