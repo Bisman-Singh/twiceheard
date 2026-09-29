@@ -1,18 +1,30 @@
 // @vitest-environment jsdom
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import CallPage, { metadata } from "@/app/call/page";
+import { callRecord } from "@/tests/fixtures/record";
 import { CallPanel } from "@/components/call/call-panel";
+import type { CallResult } from "@/lib/call/result-client";
 import type { CallHandle, CallHandlers } from "@/lib/call/session-client";
 
 const startCall = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/call/session-client", () => ({ startCall }));
+const { claimSession, fetchResult } = vi.hoisted(() => ({
+  claimSession: vi.fn<() => Promise<void>>(),
+  fetchResult: vi.fn<() => Promise<CallResult>>(),
+}));
+vi.mock("@/lib/call/result-client", () => ({ claimSession, fetchResult }));
 
 beforeAll(() => {
   // jsdom has no layout, so an element cannot scroll itself.
   Object.defineProperty(Element.prototype, "scrollTo", { value: vi.fn(), writable: true });
+});
+
+beforeEach(() => {
+  claimSession.mockResolvedValue(undefined);
+  fetchResult.mockResolvedValue({ status: "pending" });
 });
 
 afterEach(() => {
@@ -175,5 +187,48 @@ describe("call page", () => {
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("intake line");
     expect(metadata.title).toBe("Call the demo clinic");
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe("the chart after the call", () => {
+  it("claims the call's session so only this browser can read its chart back", async () => {
+    const call = connected();
+    panel();
+    await userEvent.click(button());
+    await call.say((h) => h.onSession("sess_live"));
+    expect(claimSession).toHaveBeenCalledWith("sess_live");
+  });
+
+  it("says it is listening again while the recording is being checked", async () => {
+    const call = connected();
+    panel();
+    await userEvent.click(button());
+    await call.say((h) => h.onSession("sess_live"));
+    await call.say((h) => h.onPhase("ended"));
+    expect(screen.getByText(/Listening to the recording a second time/)).toBeInTheDocument();
+  });
+
+  it("shows what the clinic receives once the chart is ready", async () => {
+    fetchResult.mockResolvedValue({
+      status: "ready",
+      record: callRecord({ full_name: { value: "Arjun Mehta", status: "confirmed" } }),
+    });
+    const call = connected();
+    panel();
+    await userEvent.click(button());
+    await call.say((h) => h.onSession("sess_live"));
+    await call.say((h) => h.onPhase("ended"));
+    const chart = await screen.findByRole("region", { name: "Your chart" });
+    expect(within(chart).getByText("Arjun Mehta")).toBeInTheDocument();
+  });
+
+  it("says plainly when the chart could not be worked out", async () => {
+    fetchResult.mockResolvedValue({ status: "unavailable" });
+    const call = connected();
+    panel();
+    await userEvent.click(button());
+    await call.say((h) => h.onSession("sess_live"));
+    await call.say((h) => h.onPhase("ended"));
+    await waitFor(() => expect(screen.getByText(/The chart is not ready yet/)).toBeInTheDocument());
   });
 });

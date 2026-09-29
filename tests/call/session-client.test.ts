@@ -128,12 +128,14 @@ function handlers() {
   const lines: CallLine[] = [];
   const fields: CallField[] = [];
   const bookings: string[] = [];
+  const sessions: string[] = [];
   let detail = "";
   return {
     phases,
     lines,
     fields,
     bookings,
+    sessions,
     detail: () => detail,
     handlers: {
       onPhase: (phase: CallPhase, note?: string) => {
@@ -143,6 +145,7 @@ function handlers() {
       onLine: (line: CallLine) => lines.push(line),
       onField: (field: CallField) => fields.push(field),
       onBooking: (spoken: string) => bookings.push(spoken),
+      onSession: (sessionId: string) => sessions.push(sessionId),
     },
   };
 }
@@ -198,6 +201,8 @@ describe("startCall", () => {
     expect(FakeSocket.last.typed("input.audio")).toHaveLength(0);
     FakeSocket.last.say({ type: "session.ready", session_id: "sess_1" });
     expect(watcher.phases).toContain("live");
+    // The page needs the platform's id to claim this call and read its chart back.
+    expect(watcher.sessions).toEqual(["sess_1"]);
     worklet.port.onmessage?.({ data: frame } as MessageEvent<ArrayBuffer>);
     const audio = FakeSocket.last.typed("input.audio");
     expect(audio).toHaveLength(1);

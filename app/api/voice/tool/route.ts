@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { readCaller } from "@/lib/http/caller";
 import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/guard";
-import { CALL_GRANT_COOKIE, readCallGrant } from "@/lib/security/call-grant";
 import { serverDeps } from "@/lib/server/deps";
 import { runTool } from "@/lib/tools/handlers";
 import { TOOL_SPECS, type ToolName } from "@/lib/voice-agent/tools";
@@ -29,9 +29,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     assertSameOrigin(request);
     const deps = serverDeps();
-    const grant = cookieValue(request.headers.get("cookie"), CALL_GRANT_COOKIE);
-    const clinicId = readCallGrant(grant, deps.env.secret, deps.now());
-    const clinic = clinicId ? deps.clinics.byId(clinicId) : null;
+    const caller = readCaller(request, deps.env.secret, deps.now());
+    const clinic = caller ? deps.clinics.byId(caller.clinicId) : null;
     if (!clinic) throw new HttpError(401, "no_call_in_progress");
     const body = await readJson(request, bodySchema, MAX_BODY_BYTES);
     if (!TOOL_NAMES.has(body.tool)) throw new HttpError(404, "unknown_tool");
@@ -53,12 +52,4 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     return jsonError(error);
   }
-}
-
-function cookieValue(header: string | null, name: string): string | undefined {
-  return header
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
 }

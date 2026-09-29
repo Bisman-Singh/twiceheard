@@ -81,3 +81,5 @@ export class RateLimiter implements RequestLimiter {
 
 /** Browser calls a visitor may start: five in ten minutes is plenty for a person, too few to burn credits. */
 export const CALL_START_LIMIT = { limit: 5, windowMs: 10 * 60_000 } as const;
+/** A caller polls for their own chart while it is being worked out; generous, but not unbounded. */
+export const RESULT_CHECK_LIMIT = { limit: 60, windowMs: 10 * 60_000 } as const;

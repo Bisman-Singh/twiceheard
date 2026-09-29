@@ -3,16 +3,24 @@ import { Redis } from "@upstash/redis";
 import { demoRegistry, type ClinicRegistry } from "@/lib/clinic/registry";
 import { memoryIntakeStore, type IntakeStore } from "@/lib/intake/store";
 import { createSharedRateLimiter } from "@/lib/http/shared-rate-limit";
-import { CALL_START_LIMIT, RateLimiter, type RequestLimiter } from "@/lib/http/rate-limit";
+import {
+  CALL_START_LIMIT,
+  RESULT_CHECK_LIMIT,
+  RateLimiter,
+  type RequestLimiter,
+} from "@/lib/http/rate-limit";
 import { createRxNormLookup, type MedicationLookup } from "@/lib/medication/rxnorm";
 import { recordingMessenger, type Messenger } from "@/lib/notify/sms";
 import { memoryCallStore, type CallStore } from "@/lib/postcall/record";
 import { readEnv, type ServerEnv } from "@/lib/server/env";
 import {
   memoryFirstDelivery,
+  memorySessionOwner,
   redisCallStore,
   redisFirstDelivery,
   redisIntakeStore,
+  redisSessionOwner,
+  type ClaimSession,
   type FirstDelivery,
   type RedisLike,
 } from "@/lib/store/redis";
@@ -32,11 +40,13 @@ export interface ServerDeps {
   intakes: IntakeStore;
   calls: CallStore;
   firstDelivery: FirstDelivery;
+  claimSession: ClaimSession;
   medications: MedicationLookup;
   sms: Messenger;
   voice: VoiceAgentClient;
   hearing: SecondHearingClient;
   callStarts: RequestLimiter;
+  resultChecks: RequestLimiter;
   now: () => Date;
 }
 
@@ -60,6 +70,7 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     intakes: redis ? redisIntakeStore(redis) : memoryIntakeStore(),
     calls: redis ? redisCallStore(redis) : memoryCallStore(),
     firstDelivery: redis ? redisFirstDelivery(redis) : memoryFirstDelivery(),
+    claimSession: redis ? redisSessionOwner(redis) : memorySessionOwner(),
     medications: createRxNormLookup(),
     // Texts are recorded, not sent, until a messaging provider is configured.
     sms: recordingMessenger(),
@@ -68,6 +79,9 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     callStarts: redis
       ? createSharedRateLimiter(redis, CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs)
       : new RateLimiter(CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs),
+    resultChecks: redis
+      ? createSharedRateLimiter(redis, RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs)
+      : new RateLimiter(RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs),
     now: () => new Date(),
   };
 }

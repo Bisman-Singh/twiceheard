@@ -33,3 +33,14 @@ export function readCallGrant(grant: string | undefined, secret: string, now: Da
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(`call-grant:${payload}`).digest("hex");
 }
+
+/**
+ * A stable, opaque name for the browser holding a grant.
+ *
+ * The grant itself never leaves the cookie jar, so what gets stored against a
+ * session is this derived value: it proves the same browser came back without
+ * putting the grant anywhere it could be read.
+ */
+export function callOwner(grant: string, secret: string): string {
+  return createHmac("sha256", secret).update(`call-owner:${grant}`).digest("hex");
+}

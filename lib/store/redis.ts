@@ -29,6 +29,8 @@ const PREFIX = "twiceheard";
 const SLOT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** A webhook delivery id is remembered long enough to outlast every retry. */
 const DELIVERY_TTL_MS = 24 * 60 * 60 * 1000;
+/** Long enough for a caller to read their own chart after the call, and no longer. */
+const OWNER_TTL_MS = 60 * 60 * 1000;
 
 const keys = {
   intake: (id: string) => `${PREFIX}:intake:${id}`,
@@ -37,6 +39,7 @@ const keys = {
   call: (sessionId: string) => `${PREFIX}:call:${sessionId}`,
   calls: (clinicId: string) => `${PREFIX}:calls:${clinicId}`,
   delivery: (id: string) => `${PREFIX}:delivery:${id}`,
+  owner: (sessionId: string) => `${PREFIX}:owner:${sessionId}`,
 };
 
 export function redisIntakeStore(redis: RedisLike): IntakeStore {
@@ -108,6 +111,34 @@ export function memoryFirstDelivery(): FirstDelivery {
   return async (deliveryId) => {
     if (seen.has(deliveryId)) return false;
     seen.add(deliveryId);
+    return true;
+  };
+}
+
+/**
+ * Binds a platform session to the browser that started it.
+ *
+ * A session id is the only handle a caller has on their own call, so it is
+ * claimed the moment the call goes live and every later request for that
+ * call's chart must present the same claim. First claim wins, atomically, so
+ * a second browser cannot take a call that is already someone's.
+ */
+export type ClaimSession = (sessionId: string, owner: string) => Promise<boolean>;
+
+export function redisSessionOwner(redis: RedisLike): ClaimSession {
+  return async (sessionId, owner) => {
+    const key = keys.owner(sessionId);
+    const claimed = await redis.set(key, owner, { nx: true, px: OWNER_TTL_MS });
+    return claimed !== null || (await redis.get<string>(key)) === owner;
+  };
+}
+
+export function memorySessionOwner(): ClaimSession {
+  const owners = new Map<string, string>();
+  return async (sessionId, owner) => {
+    const held = owners.get(sessionId);
+    if (held !== undefined) return held === owner;
+    owners.set(sessionId, owner);
     return true;
   };
 }

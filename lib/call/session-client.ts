@@ -27,6 +27,8 @@ export interface CallField {
 
 export interface CallHandlers {
   onPhase(phase: CallPhase, detail?: string): void;
+  /** The platform's id for this call, as soon as it exists. */
+  onSession(sessionId: string): void;
   onLine(line: CallLine): void;
   onField(field: CallField): void;
   onBooking(spoken: string): void;
@@ -145,8 +147,10 @@ class Call {
   }
 
   private readonly events: Record<string, (event: Record<string, unknown>) => void> = {
-    "session.ready": () => {
+    "session.ready": (event) => {
       this.ready = true;
+      const sessionId = String(event.session_id ?? "");
+      if (sessionId) this.handlers.onSession(sessionId);
       this.playAt = this.audio.context.currentTime;
       this.handlers.onPhase("live");
     },

@@ -6,9 +6,12 @@ import { processSession } from "@/lib/postcall/process";
 import { memoryCallStore, type CallRecord } from "@/lib/postcall/record";
 import {
   memoryFirstDelivery,
+  memorySessionOwner,
   redisCallStore,
   redisFirstDelivery,
   redisIntakeStore,
+  redisSessionOwner,
+  type ClaimSession,
   type RedisLike,
 } from "@/lib/store/redis";
 
@@ -133,5 +136,32 @@ describe("first delivery", () => {
       expect(await firstDelivery("evt_1")).toBe(false);
       expect(await firstDelivery("evt_2")).toBe(true);
     }
+  });
+});
+
+describe("who owns a call", () => {
+  const cases: Array<[string, (clock: { now: number }) => ClaimSession]> = [
+    ["over Redis", (clock) => redisSessionOwner(fakeRedis(clock).redis)],
+    ["in memory", () => memorySessionOwner()],
+  ];
+
+  for (const [where, build] of cases) {
+    it(`gives the call to the first browser that claims it, ${where}`, async () => {
+      const clock = { now: Date.parse("2026-09-29T06:00:00Z") };
+      const claim = build(clock);
+      expect(await claim("sess_1", "browser-a")).toBe(true);
+      // The same browser may claim again, which is what makes polling for the chart safe.
+      expect(await claim("sess_1", "browser-a")).toBe(true);
+      expect(await claim("sess_1", "browser-b")).toBe(false);
+      expect(await claim("sess_2", "browser-b")).toBe(true);
+    });
+  }
+
+  it("lets go of a call an hour after it was claimed", async () => {
+    const clock = { now: Date.parse("2026-09-29T06:00:00Z") };
+    const claim = redisSessionOwner(fakeRedis(clock).redis);
+    expect(await claim("sess_1", "browser-a")).toBe(true);
+    clock.now += 61 * 60 * 1000;
+    expect(await claim("sess_1", "browser-b")).toBe(true);
   });
 });

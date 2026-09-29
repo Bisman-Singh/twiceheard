@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallResult, type ResultState } from "@/components/call/use-call-result";
+import { VerifiedChart } from "@/components/call/verified-chart";
+import { claimSession } from "@/lib/call/result-client";
 import {
   startCall,
   type CallField,
@@ -55,8 +58,10 @@ export function CallPanel({ clinicId, clinicName }: { clinicId: string; clinicNa
   const [lines, setLines] = useState<CallLine[]>([]);
   const [fields, setFields] = useState<CallField[]>([]);
   const [booking, setBooking] = useState("");
+  const [session, setSession] = useState("");
   const handle = useRef<CallHandle | null>(null);
   const transcript = useRef<HTMLOListElement>(null);
+  const result = useCallResult(session, phase);
 
   // One way to hang up: the button, and the page being left mid-call.
   const endCall = useCallback(() => handle.current?.end(), []);
@@ -71,6 +76,7 @@ export function CallPanel({ clinicId, clinicName }: { clinicId: string; clinicNa
     setLines([]);
     setFields([]);
     setBooking("");
+    setSession("");
     setPhase("connecting");
     try {
       handle.current = await startCall(clinicId, {
@@ -89,6 +95,11 @@ export function CallPanel({ clinicId, clinicName }: { clinicId: string; clinicNa
             field,
           ]),
         onBooking: setBooking,
+        onSession: (sessionId) => {
+          setSession(sessionId);
+          // Claimed while the call runs, so only this browser can read its chart back.
+          void claimSession(sessionId);
+        },
       });
     } catch (error) {
       setPhase("failed");
@@ -108,26 +119,63 @@ export function CallPanel({ clinicId, clinicName }: { clinicId: string; clinicNa
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3 border-b border-[var(--line)] py-4">
-        <button
-          type="button"
-          onClick={live ? endCall : begin}
-          disabled={phase === "connecting" || phase === "ending"}
-          className="border-2 border-[var(--text)] px-5 py-2 font-semibold disabled:opacity-60"
-        >
-          {label}
-        </button>
-        <p className="max-w-md text-sm text-[var(--muted)]">
-          A recorded demonstration line. Speak as a patient would, and do not give real medical
-          details.
-        </p>
-      </div>
+      <CallControls
+        label={label}
+        busy={phase === "connecting" || phase === "ending"}
+        onClick={live ? endCall : begin}
+      />
 
       <div className="grid gap-8 py-6 md:grid-cols-[3fr_2fr]">
         <Transcript lines={lines} live={live} scrollRef={transcript} />
         <IntakeSlip fields={fields} booking={booking} />
       </div>
+
+      <CallResult result={result} />
     </section>
+  );
+}
+
+function CallControls({
+  label,
+  busy,
+  onClick,
+}: {
+  label: string;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3 border-b border-[var(--line)] py-4">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        className="border-2 border-[var(--text)] px-5 py-2 font-semibold disabled:opacity-60"
+      >
+        {label}
+      </button>
+      <p className="max-w-md text-sm text-[var(--muted)]">
+        A recorded demonstration line. Speak as a patient would, and do not give real medical
+        details.
+      </p>
+    </div>
+  );
+}
+
+const RESULT_WORDS: Partial<Record<ResultState["status"], string>> = {
+  waiting: "Listening to the recording a second time. This takes a few seconds.",
+  unavailable:
+    "The chart is not ready yet. The clinic still has the call, and the desk will see it once the recording has been checked.",
+};
+
+function CallResult({ result }: { result: ResultState }) {
+  if (result.record) return <VerifiedChart record={result.record} />;
+  const words = RESULT_WORDS[result.status];
+  if (!words) return null;
+  return (
+    <p role="status" className="border-t-2 border-[var(--text)] pt-5 text-sm">
+      {words}
+    </p>
   );
 }
 
