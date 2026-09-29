@@ -4,6 +4,7 @@ import {
   HORIZON_DAYS,
   addDays,
   clinicNow,
+  describeSlotId,
   openSlots,
   slotFromId,
   slotId,
@@ -92,6 +93,16 @@ describe("openSlots", () => {
     expect(openSlots(DEMO_CLINIC, { ...query, now: lateMonday, limit: 1 })[0]?.start).toBe(
       "2026-09-15T09:00",
     );
+  });
+});
+
+describe("describeSlotId", () => {
+  it("refuses a clock time that cannot happen rather than rounding it into one", () => {
+    expect(describeSlotId(DEMO_CLINIC, "dr-kapoor_20260915T0960")).toBeNull();
+    expect(describeSlotId(DEMO_CLINIC, "dr-kapoor_20260915T9900")).toBeNull();
+    // The same id must not become a bookable ten o'clock either.
+    expect(slotFromId(DEMO_CLINIC, "dr-kapoor_20260915T0960", mondayMorning)).toBeNull();
+    expect(describeSlotId(DEMO_CLINIC, "dr-kapoor_20260915T1000")?.start).toBe("2026-09-15T10:00");
   });
 });
 

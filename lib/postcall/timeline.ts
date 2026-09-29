@@ -21,7 +21,9 @@ const toolCallSchema = z.object({
 });
 
 const turnSchema = z.object({
-  turn_id: z.string(),
+  // Nothing here reads the turn's own id. Requiring it threw away every chart
+  // for a call in which one turn arrived without one.
+  turn_id: z.string().optional(),
   status: z.string().optional(),
   trigger: z.string().optional(),
   user_transcript: z.string().nullable().optional(),
@@ -33,14 +35,33 @@ const turnSchema = z.object({
   tool_calls: z.array(toolCallSchema).nullable().optional(),
 });
 
+export type TimelineTurn = z.infer<typeof turnSchema>;
+
+/**
+ * A turn in a shape this version cannot read costs that turn, not the call. A
+ * chart rebuilt from the rest of the conversation is worth far more to a clinic
+ * than no chart at all, and the missing turn shows up as a field nobody
+ * confirmed rather than as a value nobody checked.
+ */
+const turnsSchema = z
+  .array(z.unknown())
+  .transform((turns) =>
+    turns.flatMap((turn) => {
+      const parsed = turnSchema.safeParse(turn);
+      return parsed.success ? [parsed.data] : [];
+    }),
+  )
+  .catch([] as TimelineTurn[]);
+
 export const timelineSchema = z.object({
-  session_id: z.string(),
-  started_at_unix_ms: z.number().optional(),
-  turns: z.array(turnSchema).default([]),
+  // The session and its start are read from the session record, not from here,
+  // so neither is allowed to cost the call.
+  session_id: z.string().optional(),
+  started_at_unix_ms: z.number().optional().catch(undefined),
+  turns: turnsSchema,
 });
 
 export type Timeline = z.infer<typeof timelineSchema>;
-export type TimelineTurn = z.infer<typeof turnSchema>;
 
 /** One thing that happened on the call, in the order it happened. */
 export type CallEvent =

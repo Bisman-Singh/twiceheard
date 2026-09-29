@@ -38,7 +38,7 @@ describe("saveField", () => {
     expect(chart.full_name).toMatchObject({
       status: "confirmed",
       value: "Arjun Mehta",
-      attempts: 1,
+      attempts: 0,
     });
     expect(chart.full_name.history.map((event) => event.status)).toEqual(["heard", "confirmed"]);
   });
@@ -157,6 +157,38 @@ describe("saveField", () => {
     expect(replies[0]?.ok).toBe(false);
     expect(replies[0]?.note).toMatch(/Unknown field "password"/);
     expect(chart).toBe(start);
+  });
+});
+
+describe("a field the caller already confirmed", () => {
+  it("starts the tries again on a yes, so later noise cannot unresolve it", () => {
+    const { chart } = run(
+      emptyChart(),
+      ["full_name", "Arjun Mehta", "heard"],
+      ["full_name", "Arjun Mehta", "confirmed"],
+      ["full_name", "4", "heard"],
+      ["full_name", "5", "heard"],
+      ["full_name", "6", "heard"],
+    );
+    expect(chart.full_name).toMatchObject({
+      status: "confirmed",
+      value: "Arjun Mehta",
+      attempts: 3,
+    });
+  });
+
+  it("keeps the value the caller agreed to when the field is later given up on", () => {
+    const { chart, replies } = run(
+      emptyChart(),
+      ["phone", "98765 43210", "heard"],
+      ["phone", "98765 43210", "confirmed"],
+      ["phone", "98765 43211", "heard"],
+      ["phone", "98765 43212", "heard"],
+      ["phone", "98765 43213", "heard"],
+      ["phone", "98765 43214", "heard"],
+    );
+    expect(replies[5]?.note).toMatch(/Leave this detail/);
+    expect(chart.phone).toMatchObject({ status: "unresolved", value: "+919876543210" });
   });
 });
 

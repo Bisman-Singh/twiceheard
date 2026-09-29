@@ -155,7 +155,9 @@ function slotsOnDay(clinic: Clinic, date: string, earliest: number, query: SlotQ
 
 /** What a slot id names, whether or not it is still open: for records written after the call. */
 export function describeSlotId(clinic: Clinic, id: string): Slot | null {
-  const match = /^([a-z0-9-]+)_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})$/.exec(id.trim());
+  // The clock is matched digit by digit rather than parsed: reading 09:60 as 10:00 booked
+  // a time nobody offered, and 99:00 was described as a start that cannot happen.
+  const match = /^([a-z0-9-]+)_(\d{4})(\d{2})(\d{2})T([01]\d|2[0-3])([0-5]\d)$/.exec(id.trim());
   if (!match) return null;
   const [, doctorId, year, month, day, hour, mins] = match as unknown as string[];
   const doctor = clinic.doctors.find((candidate) => candidate.id === doctorId);

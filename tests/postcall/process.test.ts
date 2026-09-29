@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { DEMO_CLINIC } from "@/lib/clinic/config";
+import { DEMO_CLINIC, type Clinic } from "@/lib/clinic/config";
 import { emptyChart } from "@/lib/intake/chart";
 import {
   ArtifactsNotReady,
@@ -89,7 +89,7 @@ describe("processSession", () => {
     await expect(processSession("sess_fixture", d)).rejects.toBeInstanceOf(ArtifactsNotReady);
   });
 
-  it("still writes the record when the second hearing fails or there is no recording, and says so", async () => {
+  it("still writes the record when the second hearing fails or there is no recording, and grades nothing green", async () => {
     const failing = deps({
       hearing: { transcribe: async () => Promise.reject(new SecondHearingError("timed_out")) },
     });
@@ -100,8 +100,86 @@ describe("processSession", () => {
       const record = await processSession("sess_fixture", d);
       expect(record?.hearing).toBe("unavailable");
       expect(record?.verifications).toEqual({});
-      expect(record?.grade.fields.find((field) => field.id === "full_name")?.grade).toBe("green");
+      // The caller said yes to this name, but one hearing cannot make a field green.
+      const name = record?.grade.fields.find((field) => field.id === "full_name");
+      expect(name?.grade).toBe("amber");
+      expect(name?.reasons).toEqual([
+        "Heard once only: the recording was not available for a second hearing.",
+      ]);
+      expect(record?.grade.counts.green).toBe(0);
+      expect(record?.grade.ready).toBe(false);
+      // A field the conversation already failed keeps its own reason, not this one.
+      expect(record?.grade.fields.find((field) => field.id === "phone")).toEqual({
+        id: "phone",
+        grade: "red",
+        reasons: ["Not captured."],
+      });
     }
+  });
+
+  it("builds the chart from the turns it can read when one arrives in a shape it cannot", async () => {
+    const damaged = {
+      ...timeline,
+      // One turn the platform sent in a shape this version cannot read used to
+      // throw the whole call away, and the clinic was never given a chart.
+      turns: [{ user_transcript: 12 }, ...timeline.turns, "a turn from a newer platform"],
+    };
+    const d = deps({ fetchJson: async () => damaged });
+    const record = await processSession("sess_fixture", d);
+    expect(record?.chart.full_name).toMatchObject({ status: "confirmed", value: "Arjun Mehta" });
+    expect(record?.issues).toEqual([]);
+    expect(await d.calls.get("sess_fixture")).not.toBeNull();
+  });
+
+  it("keeps the rest of the record when one step of the rebuild fails", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const unreadable = (): never => {
+      throw new Error("clinic record cannot be read");
+    };
+    // The replay and the booking both need the clinic; the escalation does not.
+    const broken: Clinic = {
+      ...DEMO_CLINIC,
+      get country() {
+        return unreadable();
+      },
+      get doctors(): never {
+        // Not everything thrown is an Error, and the log has to survive that too.
+        throw "clinic record cannot be read";
+      },
+    };
+    const turns = [
+      {
+        tool_calls: [
+          {
+            call_id: "a",
+            name: "book_appointment",
+            arguments: { slot_id: "dr-iyer_20260915T0940" },
+            result: '{"ok":true}',
+          },
+          {
+            call_id: "b",
+            name: "escalate",
+            arguments: { reason: "Wants a person" },
+            result: '{"ok":true}',
+          },
+        ],
+      },
+    ];
+    const d = deps({
+      clinicForAgent: () => broken,
+      fetchJson: async () => ({ session_id: "s", turns }),
+    });
+    const record = await processSession("sess_fixture", d);
+    expect(record?.booking).toBeNull();
+    expect(record?.escalation).toEqual({ reason: "Wants a person", urgent: false });
+    expect(record?.chart.full_name.status).toBe("missing");
+    expect(record?.tools).toEqual({ calls: 2, failures: 0, p50Ms: null });
+    expect(await d.calls.get("sess_fixture")).toEqual(record);
+    expect(errors.mock.calls.map((call) => (call[1] as { stage: string }).stage)).toEqual([
+      "replay",
+      "booking",
+    ]);
+    errors.mockRestore();
   });
 
   it("records the booking and escalation the tools actually completed", async () => {
@@ -220,6 +298,19 @@ describe("records", () => {
     expect(percentile([900, 300, 700, 500, 1900], 0.5)).toBe(700);
     expect(percentile([900, 300, 700, 500, 1900], 0.95)).toBe(1900);
     expect(percentile([5], 0)).toBe(5);
+  });
+
+  it("erases a call only for the clinic that holds it, and says whether one was there", async () => {
+    const store = memoryCallStore();
+    const base = (await processSession("sess_fixture", deps())) as NonNullable<
+      Awaited<ReturnType<typeof processSession>>
+    >;
+    await store.save(base);
+    expect(await store.remove("another-clinic", base.sessionId)).toBe(false);
+    expect(await store.remove("sunrise-family", base.sessionId)).toBe(true);
+    expect(await store.get(base.sessionId)).toBeNull();
+    // Asking twice is not an error; the second ask just has nothing to erase.
+    expect(await store.remove("sunrise-family", base.sessionId)).toBe(false);
   });
 
   it("describes a slot id after the fact without checking it is still open", () => {

@@ -1,12 +1,36 @@
 import { z } from "zod";
 import type { Clinic } from "@/lib/clinic/config";
-import { saveField } from "@/lib/intake/chart";
-import { FIELDS, FIELD_IDS, type FieldId } from "@/lib/intake/fields";
-import { canonicalIntakeId, newIntake, newIntakeId, type Intake } from "@/lib/intake/intake";
+import { saveField, type Chart, type ToolReply } from "@/lib/intake/chart";
+import {
+  FIELDS,
+  FIELD_IDS,
+  isFieldId,
+  normalise,
+  sameValue,
+  type FieldContext,
+  type FieldId,
+} from "@/lib/intake/fields";
+import {
+  canonicalIntakeId,
+  newIntake,
+  newIntakeId,
+  type Escalation,
+  type Intake,
+} from "@/lib/intake/intake";
+import { readback } from "@/lib/intake/readback";
 import type { IntakeStore } from "@/lib/intake/store";
 import type { MedicationLookup } from "@/lib/medication/rxnorm";
 import { bookingMessage, type Messenger } from "@/lib/notify/sms";
-import { clinicNow, openSlots, slotFromId, spokenDay, spokenTime } from "@/lib/scheduling/slots";
+import {
+  HORIZON_DAYS,
+  addDays,
+  clinicNow,
+  openSlots,
+  slotFromId,
+  spokenDay,
+  spokenTime,
+  type PartOfDay,
+} from "@/lib/scheduling/slots";
 import { emergencyNumber } from "@/lib/voice-agent/prompt";
 import type { ToolName } from "@/lib/voice-agent/tools";
 
@@ -54,6 +78,8 @@ const schemas = {
     field: z.string().max(40),
     value: z.string().max(1_000).default(""),
     status: z.enum(["heard", "confirmed", "unresolved"]),
+    /** Set when the caller says the value already on the chart is not theirs any more. */
+    replaces_earlier_value: flag.optional(),
   }),
   check_medication: z.object({ intake_id: intakeId, name: z.string().min(1).max(120) }),
   find_slots: z.object({
@@ -141,6 +167,14 @@ async function startIntake(deps: ToolDeps): Promise<ToolResult> {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/** "09:00" as minutes after midnight. */
+const hhmmMinute = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+function weekdayOf(date: string): number {
+  const [year, month, day] = date.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
 /** "Monday to Saturday, 9 am to 6 pm". */
 export function openingHours(clinic: Clinic): string {
   const days = [...new Set(clinic.hours.days)].sort((a, b) => a - b);
@@ -155,23 +189,85 @@ export function openingHours(clinic: Clinic): string {
     );
     start = day as number;
   }
-  const minute = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-  return `${ranges.join(" and ")}, ${spokenTime(minute(clinic.hours.open))} to ${spokenTime(minute(clinic.hours.close))}`;
+  return `${ranges.join(" and ")}, ${spokenTime(hhmmMinute(clinic.hours.open))} to ${spokenTime(hhmmMinute(clinic.hours.close))}`;
 }
 
-async function recordField(
-  intake: Intake,
-  args: z.infer<typeof schemas.save_field>,
-  deps: ToolDeps,
-): Promise<ToolResult> {
+type SaveArgs = z.infer<typeof schemas.save_field>;
+
+/** The caller asked to replace a value, and whether the chart still shows the old one. */
+interface Disowned {
+  field: FieldId;
+  kept: boolean;
+}
+
+async function recordField(intake: Intake, args: SaveArgs, deps: ToolDeps): Promise<ToolResult> {
   const context = { country: deps.clinic.country, now: deps.now() };
   const outcome = saveField(
     intake.chart,
     { field: args.field, value: args.value, status: args.status },
     context,
   );
-  if (outcome.chart !== intake.chart) await deps.store.save({ ...intake, chart: outcome.chart });
-  return { ...outcome.reply };
+  const disowned = disownment(intake.chart, outcome.chart, args);
+  const escalation =
+    disowned?.kept === true
+      ? (intake.escalation ?? disownedEscalation(disowned.field, deps))
+      : intake.escalation;
+  if (outcome.chart !== intake.chart || escalation !== intake.escalation) {
+    await deps.store.save({ ...intake, chart: outcome.chart, escalation });
+  }
+  const again = repeatedReadback(outcome.chart, args, outcome.reply, context);
+  const reply: ToolResult = { ...outcome.reply, ...(again === undefined ? {} : { say: again }) };
+  return disowned === null ? reply : { ...reply, note: replacementNote(reply.note, disowned) };
+}
+
+/** Nothing to disown unless the field already held a value the caller has now taken back. */
+function disownment(before: Chart, after: Chart, args: SaveArgs): Disowned | null {
+  if (args.replaces_earlier_value !== true || !isFieldId(args.field)) return null;
+  const earlier = before[args.field].value;
+  if (earlier === null) return null;
+  return { field: args.field, kept: sameValue(earlier, after[args.field].value) };
+}
+
+/**
+ * A caller who says "that number is my old one" has told the clinic something,
+ * and the chart alone cannot carry it: a value that fails validation leaves the
+ * old one standing, graded only as unconfirmed. So the front desk is told in
+ * words, and an escalation already on the intake is never overwritten.
+ */
+function disownedEscalation(field: FieldId, deps: ToolDeps): Escalation {
+  const label = FIELDS[field].label.toLowerCase();
+  return {
+    reason: `The caller said the ${label} on the chart is out of date and asked to replace it. No replacement was recorded, so it must not be treated as current.`,
+    urgent: false,
+    at: deps.now().getTime(),
+  };
+}
+
+function replacementNote(note: string | undefined, disowned: Disowned): string {
+  const label = FIELDS[disowned.field].label.toLowerCase();
+  const tail = disowned.kept
+    ? `The ${label} on the chart is the one the caller has just disowned. The front desk has been told. Ask for the new one once more, and never read the old one back as theirs.`
+    : `The earlier ${label} is replaced. Do not use it again.`;
+  return note === undefined ? tail : `${note} ${tail}`;
+}
+
+/**
+ * A caller asking to hear a detail again. Only this sentence groups the digits
+ * the way the readback did, and the chart reducer stays quiet once a field is
+ * confirmed, so the sentence is rebuilt here rather than left to the model.
+ */
+function repeatedReadback(
+  chart: Chart,
+  args: SaveArgs,
+  reply: ToolReply,
+  context: FieldContext,
+): string | undefined {
+  if (reply.say !== undefined || args.status !== "heard" || !isFieldId(args.field))
+    return undefined;
+  const spec = FIELDS[args.field];
+  if (!spec.critical || chart[args.field].status !== "confirmed") return undefined;
+  const parsed = normalise(spec, args.value, context);
+  return parsed.ok ? readback(spec, parsed.value) : undefined;
 }
 
 async function checkMedication(intake: Intake, name: string, deps: ToolDeps): Promise<ToolResult> {
@@ -212,17 +308,59 @@ async function findSlots(
     limit: 3,
   });
   if (slots.length === 0) {
-    return {
-      ok: true,
-      slots: [],
-      note: "No open times for that. Ask about another day or time of day.",
-    };
+    const today = clinicNow(clinic.timezone, deps.now()).date;
+    return { ok: true, slots: [], note: noSlotsNote(clinic, args, today) };
   }
   return {
     ok: true,
     slots: slots.map((slot) => ({ slot_id: slot.id, time: slot.spoken })),
     note: "Offer these times in words. Never read out a slot_id.",
   };
+}
+
+/** The half-open range of minutes each part of the day covers. */
+const PART_RANGE: Record<PartOfDay, readonly [number, number]> = {
+  morning: [0, 12 * 60],
+  afternoon: [12 * 60, 17 * 60],
+  evening: [17 * 60, 24 * 60],
+  any: [0, 24 * 60],
+};
+
+/** Does this clinic's timetable contain any appointment start in that part of the day? */
+function clinicOpensIn(clinic: Clinic, part: PartOfDay): boolean {
+  const step = clinic.hours.slotMinutes;
+  const open = hhmmMinute(clinic.hours.open);
+  const [from, until] = PART_RANGE[part];
+  const first = open + Math.max(0, Math.ceil((from - open) / step)) * step;
+  return first < until && first + step <= hhmmMinute(clinic.hours.close);
+}
+
+/**
+ * Why there is nothing to offer. "No open times" is the same answer whether the
+ * clinic is shut that day, the date is past the booking horizon, or every time
+ * is taken, and a caller asking "is the doctor free on Sunday?" deserves the
+ * real reason rather than a shrug.
+ */
+function noSlotsNote(clinic: Clinic, args: z.infer<typeof schemas.find_slots>, today: string) {
+  const dated = args.date === undefined ? null : datedReason(clinic, args.date, today);
+  if (dated !== null) return dated;
+  if (!clinicOpensIn(clinic, args.part_of_day)) {
+    return `The clinic has no ${args.part_of_day} appointments at all; it is open ${openingHours(clinic)}. Offer another time of day.`;
+  }
+  if (args.date === today) return "Nothing is left today. Offer another day.";
+  return "Every open time then is already taken. Offer another day or time of day.";
+}
+
+function datedReason(clinic: Clinic, date: string, today: string): string | null {
+  if (date < today) return `That day has gone; today is ${spokenDay(today)}. Offer another day.`;
+  const last = addDays(today, HORIZON_DAYS);
+  if (date > last) {
+    return `The clinic books ${HORIZON_DAYS} days ahead at most, up to ${spokenDay(last)}. Offer another day.`;
+  }
+  if (!clinic.hours.days.includes(weekdayOf(date))) {
+    return `The clinic is closed on ${DAY_NAMES[weekdayOf(date)]}; it is open ${openingHours(clinic)}. Offer another day.`;
+  }
+  return null;
 }
 
 async function book(intake: Intake, slotId: string, deps: ToolDeps): Promise<ToolResult> {
@@ -274,13 +412,16 @@ async function escalate(
   if (args.urgent) {
     return {
       ok: true,
+      end_call: true,
       say: `Please call ${emergencyNumber(deps.clinic)} now. I have told the clinic as well.`,
-      note: "Do not continue the intake.",
+      note: "Do not continue the intake. Say that sentence once, then stop; the call ends there.",
     };
   }
   return {
     ok: true,
-    note: "The front desk has been told. Tell the caller someone will call them back soon.",
+    end_call: true,
+    say: "Someone from the front desk will call you back shortly. Goodbye.",
+    note: "The front desk has been told and will call them back soon. Say that sentence once, then stop; the call ends there.",
   };
 }
 
@@ -290,11 +431,31 @@ async function finish(intake: Intake, deps: ToolDeps): Promise<ToolResult> {
     const record = intake.chart[id];
     return FIELDS[id].critical && record.status !== "confirmed" && record.status !== "unresolved";
   });
-  if (open.length === 0) return { ok: true, note: "Everything needed is confirmed. Say goodbye." };
+  if (open.length === 0) {
+    return {
+      ok: true,
+      end_call: true,
+      say: farewell(intake),
+      note: "Everything needed is confirmed. Say goodbye with that sentence, once, and stop. The call ends there: say nothing after it and call no other tool.",
+    };
+  }
   const labels = open.map((id) => FIELDS[id].label.toLowerCase()).join(", ");
   return {
     ok: true,
     unconfirmed: open,
+    end_call: false,
     note: `Still unconfirmed: ${labels}. Ask for these once, then say goodbye.`,
   };
+}
+
+/**
+ * The one sentence that ends the call. It is built here so the agent has
+ * something exact to say instead of circling a confirmation it has already
+ * given; three live calls ended in a goodbye repeated up to seven times.
+ */
+function farewell(intake: Intake): string {
+  if (intake.booking === null) return "Thank you for calling. Goodbye.";
+  return intake.booking.smsSent
+    ? "Your appointment is booked and the text message is on its way. Thank you for calling. Goodbye."
+    : "Your appointment is booked and the front desk will confirm it by phone. Thank you for calling. Goodbye.";
 }

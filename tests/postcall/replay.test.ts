@@ -227,6 +227,24 @@ describe("wasSpoken and isAgreement", () => {
       expect(isAgreement(no), no).toBe(false);
     }
   });
+
+  it("does not take a Hindi word, a complaint or laughter for a yes", () => {
+    // Each of these was scored as agreement to whatever had just been read back.
+    for (const no of [
+      "जी मिचला रहा है", // "I feel nauseous": जी matched as a bare substring.
+      "मेरा जीवन ठीक है", // जी inside जीवन.
+      "ना जी", // "No, sir": ना was missing from the negatives.
+      "ha ha",
+      "ha ha ha",
+      "नहीं जी",
+    ]) {
+      expect(isAgreement(no), no).toBe(false);
+    }
+    // The honorific yes still counts when it is the whole answer, or carries its own yes.
+    for (const yes of ["जी", "जी।", "ji", "जी हाँ", "हां जी"]) {
+      expect(isAgreement(yes), yes).toBe(true);
+    }
+  });
 });
 
 describe("timeline parsing", () => {
@@ -268,6 +286,32 @@ describe("timeline parsing", () => {
       turns: [{ turn_id: "t", user_transcript: "hello" }],
     });
     expect(callEvents(noConfidence)).toEqual([{ kind: "caller", text: "hello", confidence: null }]);
+  });
+
+  it("keeps the turns it can read when the platform sends one it cannot", () => {
+    const timeline = timelineSchema.parse({
+      // No session id and no turn ids: nothing here reads either, and requiring
+      // them threw the whole call away.
+      started_at_unix_ms: "not a number",
+      turns: [
+        { user_transcript: "My name is Arjun Mehta." },
+        { turn_id: "t2", user_transcript: 7 },
+        null,
+        "a turn in some shape from the future",
+        { turn_id: "t3", agent_text: "I have your name as Arjun Mehta. Is that right?" },
+      ],
+    });
+    expect(timeline.started_at_unix_ms).toBeUndefined();
+    expect(callEvents(timeline)).toEqual([
+      { kind: "caller", text: "My name is Arjun Mehta.", confidence: null },
+      {
+        kind: "agent",
+        text: "I have your name as Arjun Mehta. Is that right?",
+        interrupted: false,
+      },
+    ]);
+    // A turn list that is not a list is the same kind of loss, and costs no more.
+    expect(timelineSchema.parse({ session_id: "s", turns: "none today" }).turns).toEqual([]);
   });
 });
 
@@ -320,6 +364,60 @@ describe("a caller who does not follow the script", () => {
         caller("Yes, that's right."),
         // The model reports the same value again in the turn it confirms it.
         save("full_name", "Arjun Mehta", "heard"),
+        save("full_name", "Arjun Mehta", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.full_name.status).toBe("confirmed");
+    expect(replay.issues).toEqual([]);
+  });
+
+  const phoneReadback =
+    "I have your number as nine eight seven six five, four three two one zero. Is that right?";
+
+  it("does not let a yes to a later question confirm a value the caller rejected", () => {
+    const replay = replayChart(
+      [
+        save("phone", "98765 43210", "heard"),
+        agent(phoneReadback),
+        caller("No, that is not my number."),
+        agent("What is the best number to reach you on?"),
+        // An answer to the new question, taken by the model as agreement to the old value.
+        caller("Yes please"),
+        save("phone", "98765 43210", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.phone.status).toBe("heard");
+    expect(replay.issues).toEqual([
+      { field: "phone", issue: "caller_did_not_agree", callerSaid: "No, that is not my number." },
+    ]);
+  });
+
+  it("accepts the yes after a readback the agent had to say a second time", () => {
+    const replay = replayChart(
+      [
+        save("phone", "98765 43210", "heard"),
+        agent(phoneReadback),
+        caller("Sorry, could you say that again?"),
+        agent(phoneReadback),
+        caller("Yes, that's right."),
+        save("phone", "98765 43210", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.phone.status).toBe("confirmed");
+    expect(replay.issues).toEqual([]);
+  });
+
+  it("does not flag one yes as two values when the model reports the same confirmation twice", () => {
+    const replay = replayChart(
+      [
+        caller("Arjun Mehta"),
+        save("full_name", "Arjun Mehta", "heard"),
+        agent(nameReadback),
+        caller("Yes"),
+        save("full_name", "Arjun Mehta", "confirmed"),
         save("full_name", "Arjun Mehta", "confirmed"),
       ],
       context,

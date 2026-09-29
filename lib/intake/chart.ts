@@ -101,9 +101,20 @@ function hear(chart: Chart, record: FieldRecord, value: FieldValue, now: Date): 
   // Reopening a field the agent had given up on starts the tries again, so one more
   // attempt is possible without immediately falling back through the give-up path.
   const attempts = record.status === "unresolved" ? 1 : record.attempts + 1;
-  if (attempts > MAX_ATTEMPTS) return giveUp(chart, { ...record, value, attempts }, now);
+  if (attempts > MAX_ATTEMPTS) {
+    // A yes already given stands. The field is still flagged for the clinic, but what it
+    // shows is the value the caller agreed to, not the last thing that could not be used.
+    const confirmed = lastConfirmedValue(record);
+    return giveUp(chart, { ...record, value: confirmed ?? value, attempts }, now);
+  }
   const next = update(chart, record, { value, status: "heard", attempts }, now);
   return { chart: next, reply: spec.critical ? { ok: true, say: readback(spec, value) } : SAVED };
+}
+
+/** The last value this field was confirmed with, if the caller ever agreed to one. */
+function lastConfirmedValue(record: FieldRecord): FieldValue | null {
+  const event = [...record.history].reverse().find((item) => item.status === "confirmed");
+  return event ? event.value : null;
 }
 
 /** The same value again: read it back again if it still needs a yes, otherwise just carry on. */
@@ -130,7 +141,9 @@ function confirm(chart: Chart, record: FieldRecord, value: FieldValue, now: Date
     return { chart: heard.chart, reply: { ...heard.reply, note } };
   }
   // The caller said yes to what was read to them, so that spelling is what is kept.
-  const change = { value: record.value, status: "confirmed" as const, attempts: record.attempts };
+  // The tries start again from here: unusable answers later in the call are a fresh
+  // problem, not a reason to mark a field the caller already settled as unresolved.
+  const change = { value: record.value, status: "confirmed" as const, attempts: 0 };
   const next = update(chart, record, change, now);
   return { chart: next, reply: { ok: true, note: "Confirmed. Move to the next field." } };
 }

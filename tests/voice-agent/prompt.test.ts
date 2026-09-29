@@ -125,9 +125,11 @@ describe("systemPrompt: rules the new instructions must not have disturbed", () 
     expect(emergencyNumber(usClinic)).toBe("nine one one");
   });
 
-  it("still hands over on request or upset, which the slot rule now reuses", () => {
+  it("still hands over on request or upset, which the slot and silence rules now reuse", () => {
     expect(prompt).toContain("If the caller asks for a person, or is upset, call escalate");
-    expect(prompt.match(/call escalate with urgent false/g)).toHaveLength(2);
+    // Three uses now: a caller who will not choose a time, one who asks for a person
+    // or is upset, and one who has stopped answering.
+    expect(prompt.match(/call escalate with urgent false/g)).toHaveLength(3);
   });
 
   it("still refuses clinical judgement and names what it may do instead", () => {
@@ -149,7 +151,51 @@ describe("systemPrompt: rules the new instructions must not have disturbed", () 
 
   it("stays short enough to be a phone-call instruction, and names the clinic it answers for", () => {
     expect(prompt).toContain("Sunrise Family Clinic");
-    expect(prompt.length).toBeLessThan(3_300);
+    // Four rules were added for what a real caller does: goes quiet, asks to hear a
+    // value again, disowns one, asks a question of their own, and rings off. The
+    // bound moves with them and stays tight, because a long prompt drowns its best rule.
+    expect(prompt.length).toBeLessThan(4_300);
+  });
+});
+
+describe("systemPrompt: what a real caller does", () => {
+  it("ends the call on one goodbye instead of repeating a confirmation", () => {
+    // Three of four live calls said goodbye, or read the booking back, up to seven
+    // times, and ran until an external timer cut them off.
+    const rule = paragraphWith(prompt, "that sentence is the goodbye");
+    expect(rule).toContain("When finish_intake or escalate returns a sentence");
+    expect(rule).toContain("Say it once, word for word, then stop.");
+    expect(rule).toContain("never say goodbye twice");
+    expect(rule).toContain("never repeat a booking confirmation");
+    expect(rule).toContain("call no tool after it");
+  });
+
+  it("asks a silent caller once, then hands over rather than sitting in silence", () => {
+    const rule = paragraphWith(prompt, "gone quiet");
+    expect(rule).toContain("ask once whether they are still there");
+    expect(rule).toMatch(/If nothing comes back, call escalate with urgent false/);
+    expect(rule).toContain("Silence is never a reason to keep talking.");
+  });
+
+  it("reproduces a value through save_field rather than saying a number from memory", () => {
+    const rule = paragraphWith(prompt, "asks to hear a detail again");
+    expect(rule).toContain("call save_field for that field with the same value and status heard");
+    expect(rule).toContain("say the sentence it returns");
+    expect(rule).toContain("Never say a number or a date back from memory.");
+  });
+
+  it("records that a caller has disowned a value instead of leaving the old one", () => {
+    const rule = paragraphWith(prompt, "replaces_earlier_value");
+    expect(rule).toContain("is not theirs any more");
+    expect(rule).toContain("replaces_earlier_value true");
+  });
+
+  it("answers the caller's own questions from tool results, reason included", () => {
+    const rule = paragraphWith(prompt, "Answer a question of the caller's own");
+    expect(rule).toContain("only from what a tool gave you");
+    expect(rule).toContain("the clinic's hours and today's date from start_intake");
+    expect(rule).toContain("the reason find_slots gives when it has no times");
+    expect(rule).toContain("Say that reason, not just that nothing is free.");
   });
 });
 

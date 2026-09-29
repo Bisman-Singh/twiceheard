@@ -48,7 +48,13 @@ describe("drugWords", () => {
     expect(drugWords("Metformin 500 mg twice daily")).toBe("metformin");
     expect(drugWords("telmisartan 40 MG")).toBe("telmisartan");
     expect(drugWords("Salbutamol syrup 2.5 ml at night")).toBe("salbutamol");
-    expect(drugWords("Dolo 650")).toBe("dolo");
+  });
+
+  it("keeps a number that is part of the name, with or without a space", () => {
+    expect(drugWords("Vitamin B12")).toBe("vitamin b12");
+    expect(drugWords("Vitamin D3")).toBe("vitamin d3");
+    expect(drugWords("Tylenol 3")).toBe("tylenol 3");
+    expect(drugWords("Dolo 650")).toBe("dolo 650");
   });
 });
 
@@ -110,6 +116,26 @@ describe("chooseMatch", () => {
     });
   });
 
+  it("asks rather than treating one strength of a drug as another", () => {
+    const pairs: Array<[string, string]> = [
+      ["Vitamin B12", "Vitamin B6"],
+      ["Vitamin D3", "Vitamin D2"],
+      ["Tylenol 3", "Tylenol"],
+    ];
+    for (const [spoken, candidate] of pairs) {
+      const match = chooseMatch(spoken, [{ rxcui: "1", name: candidate }]);
+      expect(match.kind, `${spoken} vs ${candidate}`).not.toBe("exact");
+    }
+  });
+
+  it("still drops a real dose, so the drug itself matches exactly", () => {
+    expect(chooseMatch("metformin 500 mg", [{ rxcui: "6809", name: "Metformin" }])).toEqual({
+      kind: "exact",
+      name: "metformin",
+      rxcui: "6809",
+    });
+  });
+
   it("keeps the caller's words when there is nothing to compare", () => {
     expect(chooseMatch("  florbenax ", [])).toEqual({ kind: "none", name: "florbenax" });
     expect(chooseMatch("500 mg", [{ rxcui: "1", name: "x" }])).toEqual({
@@ -137,8 +163,12 @@ describe("createRxNormLookup", () => {
       "none",
     );
     expect(
-      (await createRxNormLookup(rxnorm(LIVE["telmisartan 40"])).lookup("telmisartan 40")).kind,
+      (await createRxNormLookup(rxnorm(LIVE["telmisartan 40"])).lookup("telmisartan 40 mg")).kind,
     ).toBe("exact");
+    // Without a unit the number may belong to the name, so the caller's words are kept.
+    expect(
+      (await createRxNormLookup(rxnorm(LIVE["telmisartan 40"])).lookup("telmisartan 40")).kind,
+    ).toBe("none");
   });
 
   it("treats short terms, empty results, errors, bad shapes and timeouts as not found", async () => {

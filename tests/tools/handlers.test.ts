@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEMO_CLINIC, type Clinic } from "@/lib/clinic/config";
 import { memoryIntakeStore, type IntakeStore } from "@/lib/intake/store";
+import { openSlots } from "@/lib/scheduling/slots";
 import type { MedicationLookup } from "@/lib/medication/rxnorm";
 import { recordingMessenger, type Messenger } from "@/lib/notify/sms";
 import { openingHours, runTool, type ToolDeps } from "@/lib/tools/handlers";
@@ -349,6 +350,296 @@ describe("escalate and finish_intake", () => {
     await confirm(d, id, "phone", "98765 43210");
     await confirm(d, id, "medications", "none");
     expect((await runTool("finish_intake", { intake_id: id }, d)).note).toMatch(/Say goodbye/);
+  });
+});
+
+describe("find_slots says why there is nothing, not just that there is nothing", () => {
+  const hours = (over: Partial<Clinic["hours"]>): Clinic => ({
+    ...DEMO_CLINIC,
+    hours: { ...DEMO_CLINIC.hours, ...over },
+  });
+
+  async function noteFor(d: ToolDeps, args: Record<string, unknown>): Promise<string> {
+    const id = await started(d);
+    const result = await runTool("find_slots", { intake_id: id, ...args }, d);
+    expect(result.slots).toEqual([]);
+    return String(result.note);
+  }
+
+  it("names the day the clinic is shut, so a Sunday question gets a Sunday answer", async () => {
+    expect(await noteFor(deps(), { part_of_day: "any", date: "2026-09-20" })).toBe(
+      "The clinic is closed on Sunday; it is open Monday to Saturday, 9 am to 6 pm. Offer another day.",
+    );
+  });
+
+  it("says a day has already gone, with today's date to work from", async () => {
+    expect(await noteFor(deps(), { part_of_day: "any", date: "2026-09-12" })).toBe(
+      "That day has gone; today is Monday 14 September. Offer another day.",
+    );
+  });
+
+  it("says how far ahead the clinic books when the caller asks past the horizon", async () => {
+    expect(await noteFor(deps(), { part_of_day: "morning", date: "2026-09-29" })).toBe(
+      "The clinic books 14 days ahead at most, up to Monday 28 September. Offer another day.",
+    );
+  });
+
+  it("says a part of the day is outside the clinic's hours altogether", async () => {
+    expect(
+      await noteFor(deps({ clinic: hours({ close: "17:00" }) }), { part_of_day: "evening" }),
+    ).toBe(
+      "The clinic has no evening appointments at all; it is open Monday to Saturday, 9 am to 5 pm. Offer another time of day.",
+    );
+    expect(
+      await noteFor(deps({ clinic: hours({ open: "13:00" }) }), { part_of_day: "morning" }),
+    ).toBe(
+      "The clinic has no morning appointments at all; it is open Monday to Saturday, 1 pm to 6 pm. Offer another time of day.",
+    );
+  });
+
+  it("says today is finished rather than pretending the clinic is shut", async () => {
+    const d = deps({ now: () => new Date("2026-09-14T12:30:00Z") });
+    expect(await noteFor(d, { part_of_day: "any", date: "2026-09-14" })).toBe(
+      "Nothing is left today. Offer another day.",
+    );
+  });
+
+  it("says every time is taken when the day is open and full", async () => {
+    const taken = new Set(
+      openSlots(DEMO_CLINIC, {
+        now: NOW,
+        partOfDay: "any",
+        date: "2026-09-15",
+        taken: new Set(),
+        limit: 10_000,
+      }).map((slot) => slot.id),
+    );
+    const base = memoryIntakeStore(() => NOW.getTime());
+    const d = deps({ store: { ...base, takenSlots: async () => taken } });
+    expect(await noteFor(d, { part_of_day: "any", date: "2026-09-15" })).toBe(
+      "Every open time then is already taken. Offer another day or time of day.",
+    );
+  });
+});
+
+describe("save_field when the caller disowns a value", () => {
+  async function withPhone(d: ToolDeps): Promise<string> {
+    const id = await started(d);
+    await confirm(d, id, "phone", "98765 43210");
+    return id;
+  }
+
+  it("records the disowned value for the front desk when the new one will not take", async () => {
+    // Live, a caller said the number on file was their old one, the replacement failed
+    // validation, and the chart kept the old number with no sign it had been disowned.
+    const d = deps();
+    const id = await withPhone(d);
+    const result = await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "12", status: "heard", replaces_earlier_value: true },
+      d,
+    );
+    expect(result.ok).toBe(false);
+    expect(String(result.note)).toContain("the one the caller has just disowned");
+    expect(String(result.note)).toContain("never read the old one back as theirs");
+    const intake = await d.store.get(id);
+    expect(intake?.escalation).toMatchObject({
+      urgent: false,
+      reason:
+        "The caller said the phone number on the chart is out of date and asked to replace it. No replacement was recorded, so it must not be treated as current.",
+    });
+  });
+
+  it("simply replaces the value when the new one is good, and says the earlier one is gone", async () => {
+    const d = deps();
+    const id = await withPhone(d);
+    const result = await runTool(
+      "save_field",
+      {
+        intake_id: id,
+        field: "phone",
+        value: "91234 56780",
+        status: "heard",
+        replaces_earlier_value: "true",
+      },
+      d,
+    );
+    expect(result.say).toBe(
+      "I have your number as nine one two three four, five six seven eight zero. Is that right?",
+    );
+    expect(result.note).toBe("The earlier phone number is replaced. Do not use it again.");
+    expect((await d.store.get(id))?.escalation).toBeNull();
+  });
+
+  it("never writes over an escalation the call already has", async () => {
+    const d = deps();
+    const id = await withPhone(d);
+    await runTool("escalate", { intake_id: id, reason: "Chest pain", urgent: true }, d);
+    await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "12", status: "heard", replaces_earlier_value: true },
+      d,
+    );
+    expect((await d.store.get(id))?.escalation?.reason).toBe("Chest pain");
+  });
+
+  it("adds nothing when there was no earlier value, or the field is not one of ours", async () => {
+    const d = deps();
+    const id = await started(d);
+    const fresh = await runTool(
+      "save_field",
+      {
+        intake_id: id,
+        field: "full_name",
+        value: "Arjun Mehta",
+        status: "heard",
+        replaces_earlier_value: true,
+      },
+      d,
+    );
+    expect(fresh).toEqual({ ok: true, say: "I have your name as Arjun Mehta. Is that right?" });
+    const unknown = await runTool(
+      "save_field",
+      {
+        intake_id: id,
+        field: "favourite_colour",
+        value: "blue",
+        status: "heard",
+        replaces_earlier_value: true,
+      },
+      d,
+    );
+    expect(String(unknown.note)).toMatch(/Unknown field/);
+    expect(String(unknown.note)).not.toMatch(/disowned|replaced/);
+  });
+});
+
+describe("save_field when the caller asks to hear a value again", () => {
+  it("reproduces the grouped digits instead of leaving the model to paraphrase", async () => {
+    const d = deps();
+    const id = await started(d);
+    await confirm(d, id, "phone", "98765 43210");
+    const again = await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "98765 43210", status: "heard" },
+      d,
+    );
+    expect(again.say).toBe(
+      "I have your number as nine eight seven six five, four three two one zero. Is that right?",
+    );
+    expect(again.note).toBe("Already confirmed. Move to the next field.");
+  });
+
+  it("has no sentence to repeat for a detail that is never read back", async () => {
+    const d = deps();
+    const id = await started(d);
+    await confirm(d, id, "reason_for_visit", "a cough");
+    const again = await runTool(
+      "save_field",
+      { intake_id: id, field: "reason_for_visit", value: "a cough", status: "heard" },
+      d,
+    );
+    expect(again.say).toBeUndefined();
+  });
+
+  it("stays quiet when what the caller said is not a usable value", async () => {
+    const d = deps();
+    const id = await started(d);
+    await confirm(d, id, "phone", "98765 43210");
+    const bad = await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "one two", status: "heard" },
+      d,
+    );
+    expect(bad.ok).toBe(false);
+    expect(bad.say).toBeUndefined();
+  });
+
+  it("leaves a value still waiting on a yes, and a confirmation, to the reducer", async () => {
+    const d = deps();
+    const id = await started(d);
+    await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "98765 43210", status: "heard" },
+      d,
+    );
+    const retry = await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "12", status: "heard" },
+      d,
+    );
+    expect(retry.say).toBeUndefined();
+    const confirmed = await runTool(
+      "save_field",
+      { intake_id: id, field: "phone", value: "98765 43210", status: "confirmed" },
+      d,
+    );
+    expect(confirmed.say).toBeUndefined();
+  });
+});
+
+describe("ending the call", () => {
+  async function wholeIntake(d: ToolDeps): Promise<string> {
+    const id = await started(d);
+    await confirm(d, id, "full_name", "Arjun Mehta");
+    await confirm(d, id, "date_of_birth", "1990-03-12");
+    await confirm(d, id, "phone", "98765 43210");
+    await confirm(d, id, "medications", "none");
+    await confirm(d, id, "allergies", "none");
+    return id;
+  }
+
+  it("hands the agent one goodbye and says the call is over", async () => {
+    // Three of four live calls said goodbye, or read the booking back, up to seven
+    // times, and ran on until an external timer cut them off.
+    const d = deps();
+    const done = await runTool("finish_intake", { intake_id: await wholeIntake(d) }, d);
+    expect(done.end_call).toBe(true);
+    expect(done.say).toBe("Thank you for calling. Goodbye.");
+    expect(String(done.note)).toContain("say nothing after it and call no other tool");
+  });
+
+  it("says the text message is coming, or that the front desk will ring, in that goodbye", async () => {
+    const d = deps();
+    const id = await wholeIntake(d);
+    await runTool("book_appointment", { intake_id: id, slot_id: "dr-iyer_20260915T0940" }, d);
+    expect((await runTool("finish_intake", { intake_id: id }, d)).say).toBe(
+      "Your appointment is booked and the text message is on its way. Thank you for calling. Goodbye.",
+    );
+    const quiet = deps({ sms: { send: async () => ({ ok: false }) } as ToolDeps["sms"] });
+    const other = await wholeIntake(quiet);
+    await runTool("book_appointment", { intake_id: other, slot_id: "dr-sen_20260915T1000" }, quiet);
+    expect((await runTool("finish_intake", { intake_id: other }, quiet)).say).toBe(
+      "Your appointment is booked and the front desk will confirm it by phone. Thank you for calling. Goodbye.",
+    );
+  });
+
+  it("offers no goodbye while a critical detail is still open", async () => {
+    const d = deps();
+    const open = await runTool("finish_intake", { intake_id: await started(d) }, d);
+    expect(open.end_call).toBe(false);
+    expect(open.say).toBeUndefined();
+  });
+
+  it("ends the call after an escalation, urgent or not", async () => {
+    const d = deps();
+    const id = await started(d);
+    const urgent = await runTool(
+      "escalate",
+      { intake_id: id, reason: "Chest pain", urgent: true },
+      d,
+    );
+    expect(urgent).toMatchObject({
+      end_call: true,
+      note: expect.stringContaining("the call ends there"),
+    });
+    const routine = await runTool(
+      "escalate",
+      { intake_id: id, reason: "No answer after two tries", urgent: false },
+      d,
+    );
+    expect(routine.say).toBe("Someone from the front desk will call you back shortly. Goodbye.");
+    expect(routine.end_call).toBe(true);
   });
 });
 

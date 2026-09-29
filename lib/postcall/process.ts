@@ -1,9 +1,9 @@
 import type { Clinic } from "@/lib/clinic/config";
-import type { Chart } from "@/lib/intake/chart";
+import { emptyChart, type Chart } from "@/lib/intake/chart";
 import { FIELDS, FIELD_IDS, type FieldId } from "@/lib/intake/fields";
-import { gradeChart, type Verification } from "@/lib/intake/grade";
+import { gradeChart, type ChartGrade, type Grade, type Verification } from "@/lib/intake/grade";
 import { percentile, type CallRecord, type CallStore } from "@/lib/postcall/record";
-import { replayChart } from "@/lib/postcall/replay";
+import { replayChart, type Replay } from "@/lib/postcall/replay";
 import {
   callEvents,
   firstAudioLatencies,
@@ -22,9 +22,11 @@ import { keyterms } from "@/lib/voice-agent/prompt";
  * The session timeline is replayed into a chart that only accepts what the
  * call proves; the recording is heard a second time to score each value; the
  * two are combined into grades. If the second hearing is unavailable the
- * record still gets written, with grades from the conversation alone and a
- * flag that says so, because a late chart is worse for a clinic than an
- * honestly partial one.
+ * record still gets written, flagged as such and with nothing on it green,
+ * because a late chart is worse for a clinic than an honestly partial one and
+ * a field is only green when both hearings agree. Each step is walled off for
+ * the same reason: one that fails costs its own part of the record, not the
+ * call.
  */
 
 export interface PostCallDeps {
@@ -59,10 +61,16 @@ export async function processSession(
   const timeline = timelineSchema.parse(await deps.fetchJson(timelineUrl));
   const events = callEvents(timeline);
   // The call's own start is the right stand-in clock for a tool event with no timestamp.
-  const replay = replayChart(
-    events,
-    { country: clinic.country },
-    timeline.started_at_unix_ms ?? deps.now().getTime(),
+  const replay = stage<Replay>(
+    sessionId,
+    "replay",
+    () =>
+      replayChart(
+        events,
+        { country: clinic.country },
+        timeline.started_at_unix_ms ?? deps.now().getTime(),
+      ),
+    { chart: emptyChart(), issues: [] },
   );
   const { verifications, hearing } = await secondHearing(
     replay.chart,
@@ -70,13 +78,9 @@ export async function processSession(
     clinic,
     deps,
   );
-  const firstAudioMs = firstAudioLatencies(timeline);
   const toolEvents = events.filter(
     (event): event is Extract<CallEvent, { kind: "tool" }> => event.kind === "tool",
   );
-  const durations = toolEvents
-    .map((event) => event.durationMs)
-    .filter((ms): ms is number => ms !== null);
 
   const record: CallRecord = {
     sessionId: session.id,
@@ -85,25 +89,85 @@ export async function processSession(
     startedAt: timeline.started_at_unix_ms ?? null,
     durationSeconds: session.duration_seconds ?? null,
     chart: replay.chart,
-    grade: gradeChart(replay.chart, verifications),
+    grade: gradeFor(replay.chart, verifications, hearing),
     issues: replay.issues,
     verifications,
     hearing,
-    booking: bookingFrom(toolEvents, clinic),
-    escalation: escalationFrom(toolEvents),
+    ...callFacts(sessionId, toolEvents, clinic, firstAudioLatencies(timeline)),
+  };
+  await deps.calls.save(record);
+  return record;
+}
+
+/**
+ * One step of the rebuild, walled off. A step that fails costs its own part of
+ * the record and nothing more: a clinic can work from a partial chart and can do
+ * nothing with a call that was never charted at all. The failure is logged by
+ * kind, never by content, because everything a caller said is content.
+ */
+function stage<T>(sessionId: string, name: string, work: () => T, fallback: T): T {
+  try {
+    return work();
+  } catch (error) {
+    console.error("post-call stage failed", {
+      sessionId,
+      stage: name,
+      kind: error instanceof Error ? error.name : "unknown",
+    });
+    return fallback;
+  }
+}
+
+/** Heard once, so graded once. */
+const HEARD_ONCE = "Heard once only: the recording was not available for a second hearing.";
+
+/**
+ * A field is green only when both hearings agree, so a chart graded on the
+ * conversation alone has nothing green on it and is not ready for the clinic to
+ * act on. The cap lives here and not in the grader because this is where it is
+ * known whether the recording was heard: the grader also runs during the call
+ * and in the evals, where no second hearing exists yet.
+ */
+function gradeFor(
+  chart: Chart,
+  verifications: Partial<Record<FieldId, Verification>>,
+  hearing: CallRecord["hearing"],
+): ChartGrade {
+  const graded = gradeChart(chart, verifications);
+  if (hearing === "verified") return graded;
+  const fields = graded.fields.map((field) =>
+    field.grade === "green"
+      ? { ...field, grade: "amber" as const, reasons: [...field.reasons, HEARD_ONCE] }
+      : field,
+  );
+  const counts: Record<Grade, number> = { green: 0, amber: 0, red: 0 };
+  for (const field of fields) counts[field.grade] += 1;
+  // No field is green, and every critical field would have to be.
+  return { fields, counts, ready: false };
+}
+
+/** What the tools and the platform's own timings say about the call. */
+function callFacts(
+  sessionId: string,
+  events: ReadonlyArray<Extract<CallEvent, { kind: "tool" }>>,
+  clinic: Clinic,
+  firstAudioMs: number[],
+) {
+  const durations = events.map((event) => event.durationMs).filter((ms) => ms !== null);
+  return {
+    booking: stage(sessionId, "booking", () => bookingFrom(events, clinic), null),
+    escalation: stage(sessionId, "escalation", () => escalationFrom(events), null),
     latency: {
       firstAudioMs,
       p50: percentile(firstAudioMs, 0.5),
       p95: percentile(firstAudioMs, 0.95),
     },
     tools: {
-      calls: toolEvents.length,
-      failures: toolEvents.filter((event) => event.failed).length,
+      calls: events.length,
+      failures: events.filter((event) => event.failed).length,
       p50Ms: percentile(durations, 0.5),
     },
   };
-  await deps.calls.save(record);
-  return record;
 }
 
 async function secondHearing(

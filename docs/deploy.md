@@ -78,3 +78,14 @@ curl -s -o /dev/null -w '%{http_code}\n' https://YOUR-DOMAIN/no-such-page # 404
 
 Then make one browser call at `/call`, watch the chart come back, and open `/desk` with the clinic
 code to confirm the same call is listed there.
+
+## Why the region is pinned
+
+`vercel.json` pins the functions to `iad1`. Every tool call on a live phone call is made by the
+voice platform, whose agent and phone APIs are on its US host, and the caller waits in silence while
+that round trip happens. Putting the functions next to the platform keeps that trip short. Create
+the Redis database in the same region for the same reason: a tool handler reads the intake and
+writes it back, so a distant store costs the caller two crossings per saved value.
+
+The caller's own browser only fetches a session once, at the start, so its distance from the
+functions costs one request, not one per turn.

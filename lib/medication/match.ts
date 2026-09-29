@@ -26,16 +26,22 @@ export function allowedEdits(word: string): number {
   return Math.min(2, Math.max(0, Math.floor((word.length - 1) / 4)));
 }
 
-/** "Telmisartan 40 mg twice daily" is looked up as "telmisartan". */
+/**
+ * "Telmisartan 40 mg twice daily" is looked up as "telmisartan".
+ *
+ * A number is only a dose when its unit follows it. B12 is not B6, vitamin D3 is not D2
+ * and Tylenol 3 is not Tylenol, so digits that are part of the name stay in the term;
+ * dropping them made a different drug look like an exact match.
+ */
 export function drugWords(spoken: string): string {
   return spoken
     .toLowerCase()
-    .replace(/\b\d+(\.\d+)?\s*(mg|mcg|µg|g|ml|iu|units?)?\b/g, " ")
+    .replace(/\b\d+(\.\d+)?\s*(mg|mcg|µg|g|ml|iu|units?)\b/g, " ")
     .replace(
       /\b(tablets?|tabs?|capsules?|caps?|syrup|drops|once|twice|thrice|daily|a day|at night|in the morning|od|bd|tds)\b/g,
       " ",
     )
-    .replace(/[^\p{L}\s-]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

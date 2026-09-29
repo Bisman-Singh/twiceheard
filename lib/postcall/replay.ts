@@ -8,10 +8,11 @@ import type { CallEvent } from "@/lib/postcall/timeline";
  * During the call the agent's tool reports are taken at their word, because
  * that is all a live call has. Afterwards the whole conversation is on
  * record, so each confirmation is checked against it: the readback sentence
- * must actually have been spoken by the agent, and the caller's last words
- * before the confirmation must have been a yes. A confirmation that fails
- * either check is replayed as a plain "heard", and the reason is kept for the
- * front desk. This chart, not the live one, is what the clinic sees.
+ * must actually have been spoken by the agent, and the caller's own answer to
+ * that sentence, the turn straight after it, must have been a yes. A
+ * confirmation that fails either check is replayed as a plain "heard", and the
+ * reason is kept for the front desk. This chart, not the live one, is what the
+ * clinic sees.
  */
 
 export type ReplayIssue =
@@ -26,9 +27,27 @@ export interface Replay {
   issues: ReplayIssue[];
 }
 
+/**
+ * A yes and a no, in the languages this line is answered in.
+ *
+ * `\b` is defined over ASCII word characters, so it cannot anchor a Devanagari
+ * word. Written as bare alternatives these matched as substrings: जी inside
+ * जीवन, सही inside a longer word. Letter, mark and number lookarounds anchor
+ * both scripts. "ha" is gone from the yes list because "ha ha" is laughter, not
+ * agreement, and ना is in the no list because it is an ordinary Hindi no.
+ */
 const YES =
-  /\b(yes|yeah|yep|yup|correct|right|that's right|exactly|sure|haan|haa|ha|ji|theek hai|sahi|sahi hai)\b|हाँ|हां|जी|सही/i;
-const NO = /\b(no|nope|not|wrong|incorrect|nahi|nahin|galat)\b|नहीं|गलत/i;
+  /\b(yes|yeah|yep|yup|correct|right|that's right|exactly|sure|haan|haa|theek hai|sahi|sahi hai)\b|(?<![\p{L}\p{M}\p{N}])(हाँ|हां|सही)(?![\p{L}\p{M}\p{N}])/iu;
+const NO =
+  /\b(no|nope|not|wrong|incorrect|nahi|nahin|galat)\b|(?<![\p{L}\p{M}\p{N}])(नहीं|नही|ना|न|गलत)(?![\p{L}\p{M}\p{N}])/iu;
+/**
+ * "जी" alone is "yes, of course". In a sentence it is an ordinary word: "जी
+ * मिचला रहा है" is "I feel nauseous", which was being read as agreement to
+ * whatever had just been read back. It counts as a yes only when it is the
+ * whole answer; every phrase where it really is agreement ("जी हाँ", "haan ji")
+ * carries a yes of its own.
+ */
+const JI_ALONE = /^[\s.,!?।]*(जी|ji)[\s.,!?।]*$/iu;
 /** Share of the readback's words that must appear in what the agent said. */
 const SPOKEN_OVERLAP = 0.85;
 
@@ -136,27 +155,34 @@ export function wasSpoken(sentence: string, agentSaid: string): boolean {
 
 /** A clear yes: affirmative words and no negative ones. "No, that's right" is not a yes. */
 export function isAgreement(text: string): boolean {
-  return YES.test(text) && !NO.test(text);
+  return (YES.test(text) || JI_ALONE.test(text)) && !NO.test(text);
 }
 
-/** A readback, and the point in the call at which the agent was heard to say it. */
+/** A readback, the point at which the agent was heard to say it, and the answer it drew. */
 interface Readback {
   sentence: string;
   spokenAt: number | null;
   /** The caller talked over the sentence, so they did not hear all of the value. */
   interrupted: boolean;
+  /**
+   * The caller's next turn after the sentence was read. Only that turn can
+   * agree to it: a yes to a later question is an answer to that question.
+   */
+  answer: { text: string; at: number } | null;
 }
 
 interface ReplayState {
   chart: Chart;
   issues: ReplayIssue[];
   pending: Map<FieldId, Readback>;
-  lastCaller: { text: string; at: number };
-  /** Which field has already spent the caller's latest agreement. */
+  /** Which field has already spent one of the caller's agreements. */
   agreementSpentBy: { field: FieldId; at: number } | null;
   /** Stands in for the clock when a tool event carries no timestamp of its own. */
   startedAt: number;
 }
+
+/** A confirmation either has something wrong with it or spends the yes at this turn. */
+type Verdict = ReplayIssue | { agreedAt: number };
 
 export function replayChart(
   events: readonly CallEvent[],
@@ -167,7 +193,6 @@ export function replayChart(
     chart: emptyChart(),
     issues: [],
     pending: new Map(),
-    lastCaller: { text: "", at: -1 },
     agreementSpentBy: null,
     startedAt,
   };
@@ -175,11 +200,22 @@ export function replayChart(
   let step = 0;
   for (const event of events) {
     step += 1;
-    if (event.kind === "caller") state.lastCaller = { text: event.text, at: step };
+    if (event.kind === "caller") answerReadbacks(state, event.text, step);
     else if (event.kind === "agent") markSpoken(state, event.text, step, event.interrupted);
     else if (event.name === "save_field" && !event.failed) applySave(state, event, context);
   }
   return { chart: state.chart, issues: state.issues };
+}
+
+/**
+ * The caller's first words after a readback are the answer to it. Anything they
+ * say later is an answer to whatever was asked in between, which is how a yes to
+ * an unrelated question was reviving a value the caller had rejected.
+ */
+function answerReadbacks(state: ReplayState, text: string, step: number): void {
+  for (const entry of state.pending.values()) {
+    if (entry.spokenAt !== null && entry.answer === null) entry.answer = { text, at: step };
+  }
 }
 
 function markSpoken(
@@ -189,8 +225,11 @@ function markSpoken(
   interrupted: boolean,
 ): void {
   for (const entry of state.pending.values()) {
-    if (entry.spokenAt !== null || !wasSpoken(entry.sentence, agentSaid)) continue;
+    if (!wasSpoken(entry.sentence, agentSaid)) continue;
     entry.spokenAt = step;
+    // Reading the value again puts the question again, so the answer that counts is
+    // the one after this reading and not the one after an earlier attempt.
+    entry.answer = null;
     // The platform records the whole sentence it meant to say. If the caller cut in, they
     // did not hear all of it, so a yes cannot be a yes to a value they never heard.
     entry.interrupted = interrupted;
@@ -204,8 +243,8 @@ function applySave(
 ): void {
   const input = saveFieldInput(event.args);
   if (!input) return;
-  const checked = judgeConfirmation(state, input.field, input.status);
-  const status = checked ? "heard" : input.status;
+  const demoted = judgeConfirmation(state, input.field, input.status);
+  const status = demoted ? "heard" : input.status;
   const outcome = saveField(
     state.chart,
     { ...input, status },
@@ -220,42 +259,44 @@ function applySave(
 }
 
 /**
- * Whether a reported confirmation stands. One that stands also spends the caller's
- * agreement, so a second field cannot lean on the same word.
+ * Whether a reported confirmation has to be demoted. One that stands spends the
+ * caller's agreement, so a second field cannot lean on the same word.
  */
-function judgeConfirmation(state: ReplayState, field: string, status: string): ReplayIssue | null {
-  if (status !== "confirmed" || !isFieldId(field)) return null;
-  const issue = checkConfirmation(field, state);
-  if (issue) {
-    state.issues.push(issue);
-    return issue;
+function judgeConfirmation(state: ReplayState, field: string, status: string): boolean {
+  if (status !== "confirmed" || !isFieldId(field)) return false;
+  const verdict = checkConfirmation(field, state);
+  if (verdict === null) return false;
+  if ("agreedAt" in verdict) {
+    state.agreementSpentBy = { field, at: verdict.agreedAt };
+    return false;
   }
-  state.agreementSpentBy = { field, at: state.lastCaller.at };
-  return null;
+  state.issues.push(verdict);
+  return true;
 }
 
 /** The agent repeating a readback it already said must not erase the fact that it said it. */
 function rememberReadback(state: ReplayState, field: FieldId, sentence: string): void {
   if (state.pending.get(field)?.sentence === sentence) return;
-  state.pending.set(field, { sentence, spokenAt: null, interrupted: false });
+  state.pending.set(field, { sentence, spokenAt: null, interrupted: false, answer: null });
 }
 
-function checkConfirmation(field: FieldId, state: ReplayState): ReplayIssue | null {
+function checkConfirmation(field: FieldId, state: ReplayState): Verdict | null {
   const readback = state.pending.get(field);
   // Nothing was read back: the reducer itself refuses this confirmation, with no issue to add.
   if (!readback) return null;
   if (readback.spokenAt === null) return { field, issue: "readback_not_spoken" };
   if (readback.interrupted) return { field, issue: "readback_interrupted" };
-  const { lastCaller, agreementSpentBy } = state;
-  // The yes has to answer this readback. A yes given to an earlier field was about that field.
-  if (lastCaller.at <= readback.spokenAt) return { field, issue: "no_answer_after_readback" };
-  if (!isAgreement(lastCaller.text)) {
-    return { field, issue: "caller_did_not_agree", callerSaid: lastCaller.text.slice(0, 200) };
+  const { answer } = readback;
+  if (!answer) return { field, issue: "no_answer_after_readback" };
+  if (!isAgreement(answer.text)) {
+    return { field, issue: "caller_did_not_agree", callerSaid: answer.text.slice(0, 200) };
   }
-  if (agreementSpentBy && agreementSpentBy.at === lastCaller.at) {
-    return { field, issue: "one_yes_two_values", alsoAnswered: agreementSpentBy.field };
+  const spent = state.agreementSpentBy;
+  // A field confirmed twice off one yes is the model repeating itself, not two values.
+  if (spent && spent.field !== field && spent.at === answer.at) {
+    return { field, issue: "one_yes_two_values", alsoAnswered: spent.field };
   }
-  return null;
+  return { agreedAt: answer.at };
 }
 
 function saveFieldInput(args: Record<string, unknown>) {

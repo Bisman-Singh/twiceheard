@@ -148,3 +148,131 @@ describe("verifyValue", () => {
     expect(verifyValue(FIELDS.reason_for_visit, "cough", caller)).toBeNull();
   });
 });
+
+describe("tokens, numbers the transcriber wrote as words", () => {
+  it("reads spoken digits as digits and a spoken year as one number", () => {
+    const read = (text: string) => tokens(said(text)).map((t) => t.token);
+    expect(read("nine eight seven six five")).toEqual(["9", "8", "7", "6", "5"]);
+    expect(read("the twelfth of March, nineteen eighty five")).toEqual([
+      "the",
+      "12",
+      "of",
+      "march",
+      "1985",
+    ]);
+    expect(read("the twenty first")).toEqual(["the", "21"]);
+    expect(read("five hundred milligrams")).toEqual(["5", "hundred", "milligrams"]);
+  });
+
+  it("joins only what was said as one number", () => {
+    const read = (text: string) => tokens(said(text)).map((t) => t.token);
+    // Half past twelve is a time, and a run of digits is still a run of digits.
+    expect(read("twelve thirty")).toEqual(["12", "30"]);
+    expect(read("ninety eight seven")).toEqual(["98", "7"]);
+  });
+
+  it("scores a joined number by its weakest word", () => {
+    expect(tokens(withLowWord("nineteen eighty five", "eighty", 0.3))).toEqual([
+      { token: "1985", confidence: 0.3 },
+    ]);
+  });
+});
+
+describe("verifyValue on words a transcriber wrote out", () => {
+  it("hears a phone number dictated as words", () => {
+    const spoken = [said("my number is nine eight seven six five four three two one zero")];
+    expect(verifyValue(FIELDS.phone, "+919876543210", spoken)?.hearing).toBe("agrees");
+  });
+
+  it("hears a date of birth said entirely in words", () => {
+    expect(
+      verifyValue(FIELDS.date_of_birth, "1985-03-12", [
+        said("the twelfth of March, nineteen eighty five", 0.95),
+      ]),
+    ).toEqual({ hearing: "agrees", minConfidence: 0.95 });
+  });
+});
+
+describe("verifyValue when one number does two jobs", () => {
+  it("hears a date whose day is the same number as its month", () => {
+    expect(
+      verifyValue(FIELDS.date_of_birth, "1990-03-03", [said("the 3rd of March 1990")]),
+    ).toEqual({ hearing: "agrees", minConfidence: 0.99 });
+    expect(
+      verifyValue(FIELDS.date_of_birth, "1990-03-03", [said("it is 03/03/1990")])?.hearing,
+    ).toBe("agrees");
+    expect(verifyValue(FIELDS.date_of_birth, "1990-03-03", [said("sometime in 3 1990")])).toEqual({
+      hearing: "differs",
+      minConfidence: null,
+    });
+  });
+});
+
+describe("verifyValue on a name written with a hyphen or a title", () => {
+  it("reads the charted name the same way it reads the recording", () => {
+    expect(
+      verifyValue(FIELDS.full_name, "Kumar-Sharma", [said("my name is Kumar Sharma", 0.93)]),
+    ).toEqual({ hearing: "agrees", minConfidence: 0.93 });
+    expect(
+      verifyValue(FIELDS.full_name, "Dr. Arjun Mehta", [said("this is Dr. Arjun Mehta")])?.hearing,
+    ).toBe("agrees");
+    expect(verifyValue(FIELDS.full_name, "###", [said("my name is Kumar Sharma")])?.hearing).toBe(
+      "absent",
+    );
+  });
+});
+
+describe("verifyValue on a phone number broken by a pause", () => {
+  const first: Utterance = [
+    ...said("my number is"),
+    { text: "98765", confidence: 0.71, start: 10, end: 11 },
+  ];
+  const second: Utterance = [
+    { text: "43210,", confidence: 0.88, start: 20, end: 21 },
+    ...said("that's it"),
+  ];
+
+  it("joins the digits across the pause", () => {
+    expect(verifyValue(FIELDS.phone, "+919876543210", [first, second])).toEqual({
+      hearing: "agrees",
+      minConfidence: 0.71,
+    });
+  });
+
+  it("scores only the words that carried the number, not earlier digits", () => {
+    const withDate = [said("born 12 March 1990"), first, second];
+    expect(verifyValue(FIELDS.phone, "+919876543210", withDate)).toEqual({
+      hearing: "agrees",
+      minConfidence: 0.71,
+    });
+  });
+});
+
+describe("verifyValue on a list item said inside a denial", () => {
+  it("does not read a denied drug as a drug the caller takes", () => {
+    expect(
+      verifyValue(
+        FIELDS.medications,
+        ["Metformin"],
+        [said("i do not take metformin any more", 0.9)],
+      )?.hearing,
+    ).toBe("absent");
+  });
+
+  it("still hears the drug when the caller states it", () => {
+    expect(verifyValue(FIELDS.medications, ["Metformin"], [said("i take metformin", 0.9)])).toEqual(
+      {
+        hearing: "agrees",
+        minConfidence: 0.9,
+      },
+    );
+    // A "no" about the previous question does not reach this far.
+    expect(
+      verifyValue(
+        FIELDS.medications,
+        ["Metformin"],
+        [said("no allergies at all, and i take metformin", 0.9)],
+      )?.hearing,
+    ).toBe("agrees");
+  });
+});

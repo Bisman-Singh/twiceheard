@@ -21,7 +21,11 @@ export interface CallRecord {
   grade: ChartGrade;
   issues: ReplayIssue[];
   verifications: Partial<Record<FieldId, Verification>>;
-  /** Whether the second hearing ran; when it did not, grades rest on the conversation alone. */
+  /**
+   * Whether the second hearing ran. When it did not, the grades rest on the
+   * conversation alone, so nothing on the chart is green and it is not ready:
+   * a field is green only when both hearings agree.
+   */
   hearing: "verified" | "unavailable";
   booking: { slotId: string; spoken: string } | null;
   escalation: { reason: string; urgent: boolean } | null;
