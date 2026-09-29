@@ -45,3 +45,8 @@ AGENTS.md
 
 # Gitleaks report written by the CI action
 results.sarif
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/

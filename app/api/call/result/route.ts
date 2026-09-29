@@ -4,6 +4,7 @@ import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/gua
 import { ArtifactsNotReady, processSession } from "@/lib/postcall/process";
 import { postCallDeps } from "@/lib/postcall/run";
 import { serverDeps } from "@/lib/server/deps";
+import { VoiceAgentApiError } from "@/lib/voice-agent/client";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -46,7 +47,9 @@ export async function POST(request: Request): Promise<Response> {
       ...post,
       clinicForAgent: (agentId) => post.clinicForAgent(agentId) ?? clinic,
     }).catch((error: unknown) => {
+      // Not ready, and a session the platform has not published yet, are both "ask again".
       if (error instanceof ArtifactsNotReady) return undefined;
+      if (error instanceof VoiceAgentApiError && error.status === 404) return undefined;
       throw error;
     });
     if (record === undefined) {

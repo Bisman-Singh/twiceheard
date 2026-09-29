@@ -48,6 +48,22 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Install the browser the end to end test drives
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser end to end test
+        run: npm run e2e
         env:
-          # A placeholder is enough for the build. The key is only read at request time.
-          GOOGLE_GENERATIVE_AI_API_KEY: ci-placeholder-not-a-real-key
+          # The platform's socket is played by the test, so these need to parse, not to work.
+          ASSEMBLYAI_API_KEY: ci-placeholder-not-a-real-key
+          TWICEHEARD_SECRET: ci-placeholder-secret-at-least-32-chars
+          TWICEHEARD_WEBHOOK_SECRET: ci-placeholder-webhook-at-least-32-chars
+
+      - name: Keep the failure trace
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 7

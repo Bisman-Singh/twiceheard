@@ -6,6 +6,7 @@ import { RateLimiter } from "@/lib/http/rate-limit";
 import { CALL_GRANT_COOKIE, issueCallGrant } from "@/lib/security/call-grant";
 import { setServerDeps, type ServerDeps } from "@/lib/server/deps";
 import type { CallRecord } from "@/lib/postcall/record";
+import { VoiceAgentApiError } from "@/lib/voice-agent/client";
 import type { Utterance } from "@/lib/verify/hearing";
 import type { SessionDetail } from "@/lib/voice-agent/client";
 import { NOW, SECRET, sameOriginPost, testDeps } from "@/tests/api/helpers";
@@ -151,6 +152,17 @@ describe("POST /api/call/result", () => {
     const { record } = (await (await askResult()).json()) as { record: CallRecord };
     await deps.calls.save({ ...record, clinicId: "another-clinic" });
     expect((await askResult()).status).toBe(404);
+  });
+
+  it("asks again for a session the platform has not published yet", async () => {
+    const deps = callDeps();
+    vi.mocked(deps.voice.getSession).mockRejectedValue(
+      new VoiceAgentApiError(404, "session_not_found"),
+    );
+    await post(claim, "/api/call/claim", { sessionId: SESSION });
+    const response = await askResult();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "pending" });
   });
 
   it("does not pretend a real failure is a chart that has not arrived yet", async () => {
