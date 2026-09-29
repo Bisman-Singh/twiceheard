@@ -28,12 +28,19 @@ const ISSUE_WORDS = {
   caller_did_not_agree: "The caller did not agree to the value that was read back.",
 } as const;
 
-export function VerifiedChart({ record }: { record: CallRecord }) {
+export function VerifiedChart({
+  record,
+  heading: Heading = "h3",
+}: {
+  record: CallRecord;
+  /** The level that keeps the page's headings in order where the chart is placed. */
+  heading?: "h2" | "h3";
+}) {
   const issues = new Map(record.issues.map((issue) => [issue.field, ISSUE_WORDS[issue.issue]]));
   return (
     <section aria-label="Your chart" className="border-t-2 border-[var(--text)] pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-lg font-semibold">What the clinic receives</h3>
+        <Heading className="text-lg font-semibold">What the clinic receives</Heading>
         <p className="text-sm text-[var(--muted)]">
           {record.grade.counts.green} verified, {record.grade.counts.amber} to check,{" "}
           {record.grade.counts.red} missing

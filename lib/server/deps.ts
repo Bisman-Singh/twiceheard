@@ -5,6 +5,7 @@ import { memoryIntakeStore, type IntakeStore } from "@/lib/intake/store";
 import { createSharedRateLimiter } from "@/lib/http/shared-rate-limit";
 import {
   CALL_START_LIMIT,
+  DESK_SIGN_IN_LIMIT,
   RESULT_CHECK_LIMIT,
   RateLimiter,
   type RequestLimiter,
@@ -47,6 +48,7 @@ export interface ServerDeps {
   hearing: SecondHearingClient;
   callStarts: RequestLimiter;
   resultChecks: RequestLimiter;
+  deskSignIns: RequestLimiter;
   now: () => Date;
 }
 
@@ -82,6 +84,9 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     resultChecks: redis
       ? createSharedRateLimiter(redis, RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs)
       : new RateLimiter(RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs),
+    deskSignIns: redis
+      ? createSharedRateLimiter(redis, DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs)
+      : new RateLimiter(DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs),
     now: () => new Date(),
   };
 }

@@ -82,10 +82,10 @@ export function redisCallStore(redis: RedisLike): CallStore {
     async get(sessionId) {
       return redis.get<CallRecord>(keys.call(sessionId));
     },
-    async list(clinicId, limit) {
+    async list(clinicId, limit, offset = 0) {
       // Page through ids until enough records are found, so a deleted record never hides older ones.
       const found: CallRecord[] = [];
-      for (let start = 0; limit > 0 && found.length < limit; start += limit) {
+      for (let start = offset; limit > 0 && found.length < limit; start += limit) {
         const ids = await redis.zrange(keys.calls(clinicId), start, start + limit - 1, {
           rev: true,
         });

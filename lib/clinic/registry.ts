@@ -7,6 +7,8 @@ import { DEMO_CLINIC, type Clinic } from "@/lib/clinic/config";
  * a finished call's webhook arrives; anything not in the registry is refused.
  */
 export interface ClinicRegistry {
+  /** Every clinic this deployment serves, for work that is not about one caller. */
+  ids(): readonly string[];
   byId(clinicId: string): Clinic | null;
   forAgent(agentId: string | null): Clinic | null;
   agentFor(clinicId: string): string | null;
@@ -19,6 +21,7 @@ export interface RegistryEntry {
 
 export function staticRegistry(entries: readonly RegistryEntry[]): ClinicRegistry {
   return {
+    ids: () => entries.map((entry) => entry.clinic.id),
     byId: (clinicId) => entries.find((entry) => entry.clinic.id === clinicId)?.clinic ?? null,
     forAgent: (agentId) =>
       agentId ? (entries.find((entry) => entry.agentId === agentId)?.clinic ?? null) : null,

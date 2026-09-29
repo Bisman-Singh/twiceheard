@@ -32,8 +32,8 @@ export interface CallRecord {
 export interface CallStore {
   save(record: CallRecord): Promise<void>;
   get(sessionId: string): Promise<CallRecord | null>;
-  /** Newest first. */
-  list(clinicId: string, limit: number): Promise<CallRecord[]>;
+  /** Newest first, skipping `offset` of the newest so a desk can page back. */
+  list(clinicId: string, limit: number, offset?: number): Promise<CallRecord[]>;
 }
 
 export function memoryCallStore(): CallStore {
@@ -45,11 +45,11 @@ export function memoryCallStore(): CallStore {
     async get(sessionId) {
       return records.get(sessionId) ?? null;
     },
-    async list(clinicId, limit) {
+    async list(clinicId, limit, offset = 0) {
       return [...records.values()]
         .filter((record) => record.clinicId === clinicId)
         .sort((a, b) => b.processedAt - a.processedAt)
-        .slice(0, limit);
+        .slice(offset, offset + limit);
     },
   };
 }

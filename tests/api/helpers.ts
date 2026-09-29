@@ -39,6 +39,7 @@ export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
     hearing: { transcribe: vi.fn(async () => ({ caller: [], agent: [] })) },
     callStarts: new RateLimiter(5, 600_000, () => NOW.getTime()),
     resultChecks: new RateLimiter(60, 600_000, () => NOW.getTime()),
+    deskSignIns: new RateLimiter(5, 600_000, () => NOW.getTime()),
     now: () => NOW,
     ...overrides,
   };
