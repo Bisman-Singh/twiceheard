@@ -28,7 +28,11 @@ mkdirSync(OUT, { recursive: true });
 
 /** What the synthetic caller says, chosen by what the agent just asked for. */
 const ANSWERS = [
-  [/is that right|did i get that|is that correct|correct\?|spelt|spelled/i, "Yes, that's right."],
+  [
+    /is that right|did i get that|is that correct|correct\?|complete list|anything i have missed/i,
+    "Yes, that's right.",
+  ],
+  [/which doctor|dr\.|doctor would you prefer/i, "Doctor Kapoor, please."],
   [/full name|your name|may i have your name/i, "My name is Arjun Mehta."],
   [/date of birth|born|birthday/i, "The twelfth of March, nineteen ninety."],
   [
@@ -41,7 +45,10 @@ const ANSWERS = [
   ],
   [/medication|medicine|tablets|taking anything/i, "I take Metformin every day."],
   [/allerg/i, "No allergies."],
-  [/time|when would|morning|afternoon|slot|appointment/i, "Tomorrow morning would suit me."],
+  [
+    /time|when would|morning|afternoon|slot|appointment|come in/i,
+    "Tomorrow morning would suit me.",
+  ],
   [/anything else|that all|help you with today/i, "No, that's all. Thank you."],
 ];
 const FALLBACK = "Yes.";

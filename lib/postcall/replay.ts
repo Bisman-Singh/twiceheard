@@ -30,15 +30,56 @@ const NO = /\b(no|nope|not|wrong|incorrect|nahi|nahin|galat)\b|नहीं|ग�
 /** Share of the readback's words that must appear in what the agent said. */
 const SPOKEN_OVERLAP = 0.85;
 
+/**
+ * A transcriber writes a number as digits where the agent was given words to
+ * say, so "nine eight one" and "9 8 1" are the same readback. Both sides are
+ * reduced to single digits before they are compared, or a readback that was
+ * spoken perfectly well would be recorded as never spoken.
+ */
+const DIGIT_FOR_WORD: Record<string, string> = {
+  zero: "0",
+  oh: "0",
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+};
+
+function expand(word: string): string[] {
+  const plain = word.replace(/^(\d+)(st|nd|rd|th)$/, "$1");
+  if (/^\d+$/.test(plain)) return [...plain];
+  const digit = DIGIT_FOR_WORD[plain];
+  return digit ? [digit] : [plain];
+}
+
 const words = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s']/gu, " ")
     .split(/\s+/)
-    .filter(Boolean);
+    .filter(Boolean)
+    .flatMap(expand);
 
-/** Did the agent say this sentence, allowing for small differences in how it was voiced? */
+/** The digits in a sentence, in the order they were said. */
+const digitsOf = (text: string) =>
+  words(text)
+    .filter((word) => /^\d$/.test(word))
+    .join("");
+
+/**
+ * Did the agent say this sentence, allowing for small differences in how it
+ * was voiced? Wording is forgiven; a number is not. The digits of the readback
+ * have to appear in the agent's words in the same order, so a transposed or
+ * altered number can never pass as the value that was read back.
+ */
 export function wasSpoken(sentence: string, agentSaid: string): boolean {
+  const digits = digitsOf(sentence);
+  if (digits.length > 0 && !digitsOf(agentSaid).includes(digits)) return false;
   const wanted = words(sentence);
   const available = new Map<string, number>();
   for (const word of words(agentSaid)) available.set(word, (available.get(word) ?? 0) + 1);

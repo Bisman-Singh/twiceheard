@@ -49,6 +49,18 @@ describe("systemPrompt: the reason for the visit", () => {
   });
 });
 
+describe("systemPrompt: the preferred time", () => {
+  it("saves what the caller asked for before looking for slots, so the chart shows it", () => {
+    // A real call booked a slot and still left preferred_time empty on the chart.
+    const step = systemPrompt(DEMO_CLINIC)
+      .split("\n")
+      .find((line) => line.startsWith("7."));
+    expect(step).toContain("preferred_time");
+    expect(step).toContain("status heard");
+    expect(step).toContain("find_slots");
+  });
+});
+
 describe("systemPrompt: appointment times", () => {
   it("looks up slots once for what the caller asked for", () => {
     expect(paragraphWith(prompt, "Call find_slots once")).toContain(
@@ -70,7 +82,8 @@ describe("systemPrompt: appointment times", () => {
   });
 
   it("keeps the three-time offer and the booking step it ends in", () => {
-    expect(prompt).toContain("Use find_slots, offer at most three times, then book_appointment.");
+    // Step 7 now also saves the time the caller asked for; the offer and the booking are unchanged.
+    expect(prompt).toContain("use find_slots, offer at most three times, then book_appointment.");
   });
 });
 

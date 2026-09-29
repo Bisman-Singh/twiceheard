@@ -169,6 +169,29 @@ describe("replayChart", () => {
 });
 
 describe("wasSpoken and isAgreement", () => {
+  it("counts a number read aloud as spoken when the transcript wrote it as digits", () => {
+    // Seen in a real call: the tool gave words to say, the transcriber wrote numerals.
+    expect(
+      wasSpoken(
+        "I have your number as nine eight one two three, four five six seven eight. Is that right?",
+        "I have your number as 9 8 1 2 3 4 5 6 7 8. Is that right?",
+      ),
+    ).toBe(true);
+    expect(
+      wasSpoken(
+        "I have your date of birth as 12 March 1990. Is that right?",
+        "I have your date of birth as March 12th 1990. Is that right?",
+      ),
+    ).toBe(true);
+    // A different number is still a different number.
+    expect(
+      wasSpoken(
+        "I have your number as nine eight one two three, four five six seven eight. Is that right?",
+        "I have your number as 9 8 1 2 3 4 5 6 7 9. Is that right?",
+      ),
+    ).toBe(false);
+  });
+
   it("accepts the readback voiced with small differences, and rejects a paraphrase", () => {
     expect(
       wasSpoken(

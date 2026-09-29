@@ -52,16 +52,25 @@ export interface ServerDeps {
   now: () => Date;
 }
 
-let deps: ServerDeps | null = null;
+/**
+ * Held on the process, not in this module. A framework compiles server
+ * components and route handlers separately, so a module-level value is not one
+ * value, and the in-memory stores would differ between a page and the API that
+ * wrote to them. With Redis configured the stores are shared anyway; this is
+ * what makes a laptop behave like one deployment.
+ */
+const SHARED = Symbol.for("twiceheard.server-deps");
+const holder = globalThis as { [SHARED]?: ServerDeps };
 
 export function serverDeps(): ServerDeps {
-  deps ??= buildDeps(readEnv(process.env));
-  return deps;
+  holder[SHARED] ??= buildDeps(readEnv(process.env));
+  return holder[SHARED];
 }
 
 /** Replace the shared dependencies; tests only. */
 export function setServerDeps(next: ServerDeps | null): void {
-  deps = next;
+  if (next) holder[SHARED] = next;
+  else delete holder[SHARED];
 }
 
 export function buildDeps(env: ServerEnv): ServerDeps {
