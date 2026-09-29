@@ -222,8 +222,19 @@ describe("postCallDeps and fetchArtifact", () => {
     );
     expect(await postCallDeps(shared).fetchJson("https://cdn.assemblyai.com/a.json")).toEqual([]);
     expect(await fetchArtifact("https://cdn.assemblyai.com/a.json")).toEqual([]);
+    // The platform publishes artifacts from its session bucket, checked against a live session.
+    expect(
+      await fetchArtifact(
+        "https://speech-to-speech-production-euw1-sessions.s3.amazonaws.com/t.json",
+      ),
+    ).toEqual([]);
     // A link the platform did not issue is not followed, whatever it points at.
-    for (const elsewhere of ["https://evil.example/a.json", "http://cdn.assemblyai.com/a.json"]) {
+    for (const elsewhere of [
+      "https://evil.example/a.json",
+      "http://cdn.assemblyai.com/a.json",
+      "https://assemblyai.com.evil.example/a.json",
+      "https://s3.amazonaws.com.evil.example/a.json",
+    ]) {
       await expect(fetchArtifact(elsewhere)).rejects.toMatchObject({
         code: "artifact_unavailable",
       });

@@ -53,8 +53,13 @@ export function postCallDeps(deps: ServerDeps, fetchImpl: typeof fetch = fetch):
 /** Timelines are small; a capped, time-limited fetch keeps a bad link from holding the function. */
 export const MAX_ARTIFACT_BYTES = 4 * 1024 * 1024;
 
-/** The platform's own hosts. A link that points anywhere else is not followed. */
-const ARTIFACT_HOSTS = /(^|\.)assemblyai\.com$/;
+/**
+ * Where the platform really publishes a session's artifacts, checked against a live
+ * session rather than assumed: its own hosts, and the object store its session bucket
+ * lives in. A link anywhere else is not followed, so a bad link from upstream cannot
+ * turn this deployment into a way of reaching somewhere it should not.
+ */
+const ARTIFACT_HOSTS = /(^|\.)assemblyai\.com$|(^|\.)s3([.-][a-z0-9-]+)?\.amazonaws\.com$/;
 
 export async function fetchArtifact(
   url: string,

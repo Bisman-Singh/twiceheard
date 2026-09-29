@@ -183,6 +183,20 @@ describe("wasSpoken and isAgreement", () => {
         "I have your date of birth as March 12th 1990. Is that right?",
       ),
     ).toBe(true);
+    // Seen in a real call the other way round: the agent's words were written out in full.
+    expect(
+      wasSpoken(
+        "I have your date of birth as 12 March 1990. Is that right?",
+        "I have your date of birth as March twelfth, nineteen ninety. Is that right?",
+      ),
+    ).toBe(true);
+    // A different day is a different date, however it was said.
+    expect(
+      wasSpoken(
+        "I have your date of birth as 12 March 1990. Is that right?",
+        "I have your date of birth as March thirteenth, nineteen ninety. Is that right?",
+      ),
+    ).toBe(false);
     // A different number is still a different number.
     expect(
       wasSpoken(

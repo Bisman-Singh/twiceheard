@@ -31,30 +31,69 @@ const NO = /\b(no|nope|not|wrong|incorrect|nahi|nahin|galat)\b|नहीं|ग�
 const SPOKEN_OVERLAP = 0.85;
 
 /**
- * A transcriber writes a number as digits where the agent was given words to
- * say, so "nine eight one" and "9 8 1" are the same readback. Both sides are
- * reduced to single digits before they are compared, or a readback that was
- * spoken perfectly well would be recorded as never spoken.
+ * A transcriber writes a number however it heard it, and the agent was given the other
+ * form to say: "9 8 1" against "nine eight one", "12 March 1990" against "March twelfth,
+ * nineteen ninety". Both sides are reduced to their digits before they are compared, or a
+ * readback that was spoken perfectly well would be recorded as never spoken.
  */
-const DIGIT_FOR_WORD: Record<string, string> = {
-  zero: "0",
-  oh: "0",
-  one: "1",
-  two: "2",
-  three: "3",
-  four: "4",
-  five: "5",
-  six: "6",
-  seven: "7",
-  eight: "8",
-  nine: "9",
+const NUMBER_FOR_WORD: Record<string, number> = {
+  zero: 0,
+  oh: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
+  first: 1,
+  second: 2,
+  third: 3,
+  fourth: 4,
+  fifth: 5,
+  sixth: 6,
+  seventh: 7,
+  eighth: 8,
+  ninth: 9,
+  tenth: 10,
+  eleventh: 11,
+  twelfth: 12,
+  thirteenth: 13,
+  fourteenth: 14,
+  fifteenth: 15,
+  sixteenth: 16,
+  seventeenth: 17,
+  eighteenth: 18,
+  nineteenth: 19,
+  twentieth: 20,
+  thirtieth: 30,
 };
 
 function expand(word: string): string[] {
   const plain = word.replace(/^(\d+)(st|nd|rd|th)$/, "$1");
   if (/^\d+$/.test(plain)) return [...plain];
-  const digit = DIGIT_FOR_WORD[plain];
-  return digit ? [digit] : [plain];
+  const number = NUMBER_FOR_WORD[plain];
+  return number === undefined ? [plain] : [...String(number)];
 }
 
 const words = (text: string) =>
