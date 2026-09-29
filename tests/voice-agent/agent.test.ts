@@ -11,7 +11,7 @@ import {
 } from "@/lib/voice-agent/prompt";
 import { TOOL_KEY_HEADER, TOOL_SPECS, httpTools } from "@/lib/voice-agent/tools";
 
-const deployment = { baseUrl: "https://earshot.example", toolKey: "k".repeat(40) };
+const deployment = { baseUrl: "https://twiceheard.example", toolKey: "k".repeat(40) };
 const usClinic: Clinic = { ...DEMO_CLINIC, country: "US", timezone: "America/New_York" };
 
 describe("tools", () => {
@@ -32,7 +32,7 @@ describe("tools", () => {
   it("points every tool at this clinic's https endpoint with the key header", () => {
     const tools = httpTools(deployment.baseUrl, "sunrise-family", deployment.toolKey);
     expect(tools[1]?.http).toEqual({
-      url: "https://earshot.example/api/tools/sunrise-family/save_field",
+      url: "https://twiceheard.example/api/tools/sunrise-family/save_field",
       http_method: "POST",
       headers: [{ name: TOOL_KEY_HEADER, value: deployment.toolKey }],
     });
@@ -84,7 +84,7 @@ describe("prompt", () => {
 describe("agentBody", () => {
   it("builds the stored agent a clinic's number and call button share", () => {
     const body = agentBody(DEMO_CLINIC, deployment);
-    expect(body.name).toBe("earshot-sunrise-family");
+    expect(body.name).toBe("twiceheard-sunrise-family");
     expect(body.voice).toEqual({ voice_id: "anna" });
     expect(body.input.voice_focus).toBe("far-field");
     expect(body.input.keyterms).toContain("Dr. Neha Kapoor");

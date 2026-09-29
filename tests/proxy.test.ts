@@ -7,7 +7,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe("proxy", () => {
   it("sets a nonce-based CSP that allows the voice socket and nothing else outside", () => {
-    const response = proxy(new NextRequest("https://earshot.example/"));
+    const response = proxy(new NextRequest("https://twiceheard.example/"));
     const csp = response.headers.get("Content-Security-Policy") ?? "";
     const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
     expect(nonce).toBeTruthy();
@@ -20,10 +20,10 @@ describe("proxy", () => {
   });
 
   it("issues a different nonce per request", () => {
-    const first = proxy(new NextRequest("https://earshot.example/")).headers.get(
+    const first = proxy(new NextRequest("https://twiceheard.example/")).headers.get(
       "Content-Security-Policy",
     );
-    const second = proxy(new NextRequest("https://earshot.example/")).headers.get(
+    const second = proxy(new NextRequest("https://twiceheard.example/")).headers.get(
       "Content-Security-Policy",
     );
     expect(first).not.toBe(second);
@@ -34,7 +34,7 @@ describe("proxy", () => {
     expect(buildCsp("abc", false)).toContain("style-src 'self' 'nonce-abc'");
     vi.stubEnv("NODE_ENV", "development");
     expect(
-      proxy(new NextRequest("https://earshot.example/")).headers.get("Content-Security-Policy"),
+      proxy(new NextRequest("https://twiceheard.example/")).headers.get("Content-Security-Policy"),
     ).toContain("'unsafe-eval'");
   });
 

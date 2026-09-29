@@ -37,6 +37,6 @@ describe("call grants", () => {
   });
 
   it("keeps the cookie name in one place", () => {
-    expect(CALL_GRANT_COOKIE).toBe("earshot_call");
+    expect(CALL_GRANT_COOKIE).toBe("twiceheard_call");
   });
 });

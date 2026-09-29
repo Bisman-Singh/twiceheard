@@ -48,7 +48,7 @@ export function sameOriginPost(
   body: unknown,
   headers: Record<string, string> = {},
 ): Request {
-  return new Request(`https://earshot.example${path}`, {
+  return new Request(`https://twiceheard.example${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body),

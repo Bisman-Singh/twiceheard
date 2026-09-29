@@ -9,7 +9,7 @@ describe("inlineSession", () => {
   const session = inlineSession(DEMO_CLINIC);
 
   it("says the same things a stored agent says, so the two paths cannot drift", () => {
-    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://earshot.example", toolKey: "k" });
+    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });
     expect(session.system_prompt).toBe(systemPrompt(DEMO_CLINIC));
     expect(session.greeting).toBe(greeting(DEMO_CLINIC));
     expect(session.input.keyterms).toEqual(stored.input.keyterms);
@@ -31,7 +31,7 @@ describe("inlineSession", () => {
 
   it("assumes a caller close to the microphone, unlike a phone line", () => {
     expect(session.input.voice_focus).toBe("near-field");
-    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://earshot.example", toolKey: "k" });
+    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });
     expect(stored.input.voice_focus).toBe("far-field");
   });
 });

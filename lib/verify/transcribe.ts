@@ -9,7 +9,7 @@ import type { HeardWord, Utterance } from "@/lib/verify/hearing";
  *
  * The recording is passed by its link, so the audio goes from AssemblyAI's
  * session store to AssemblyAI's transcriber and never passes through
- * Earshot. When the words have been read, the transcript is deleted: the
+ * Twiceheard. When the words have been read, the transcript is deleted: the
  * chart keeps a verdict and a confidence per field, not the words.
  */
 

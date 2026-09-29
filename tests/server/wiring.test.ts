@@ -17,8 +17,8 @@ import { testDeps } from "@/tests/api/helpers";
 
 const base = {
   ASSEMBLYAI_API_KEY: "key",
-  EARSHOT_SECRET: "s".repeat(32),
-  EARSHOT_WEBHOOK_SECRET: "w".repeat(32),
+  TWICEHEARD_SECRET: "s".repeat(32),
+  TWICEHEARD_WEBHOOK_SECRET: "w".repeat(32),
 };
 
 afterEach(() => {
@@ -46,22 +46,25 @@ describe("readEnv", () => {
       ...base,
       UPSTASH_REDIS_REST_URL: "https://u.example.upstash.io",
       UPSTASH_REDIS_REST_TOKEN: "u",
-      EARSHOT_AGENT_ID: "agent-1",
+      TWICEHEARD_AGENT_ID: "agent-1",
     });
     expect(upstash).toMatchObject({
       redis: { url: "https://u.example.upstash.io", token: "u" },
       agentId: "agent-1",
     });
     expect(
-      readEnv({ ...base, KV_REST_API_URL: "https://kv.example.upstash.io", EARSHOT_AGENT_ID: "" })
-        .redis,
+      readEnv({
+        ...base,
+        KV_REST_API_URL: "https://kv.example.upstash.io",
+        TWICEHEARD_AGENT_ID: "",
+      }).redis,
     ).toBeNull();
   });
 
   it("names the variable that is missing or too short, never its value", () => {
-    expect(() => readEnv({ ...base, EARSHOT_SECRET: "short" })).toThrow(EnvError);
-    expect(() => readEnv({ ...base, EARSHOT_SECRET: "short" })).toThrow(/EARSHOT_SECRET/);
-    expect(() => readEnv({ EARSHOT_SECRET: "s".repeat(32) })).toThrow(/ASSEMBLYAI_API_KEY/);
+    expect(() => readEnv({ ...base, TWICEHEARD_SECRET: "short" })).toThrow(EnvError);
+    expect(() => readEnv({ ...base, TWICEHEARD_SECRET: "short" })).toThrow(/TWICEHEARD_SECRET/);
+    expect(() => readEnv({ TWICEHEARD_SECRET: "s".repeat(32) })).toThrow(/ASSEMBLYAI_API_KEY/);
     expect(() => readEnv({ ...base, KV_REST_API_URL: "not a url" })).toThrow(/KV_REST_API_URL/);
   });
 });

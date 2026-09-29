@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 function signed(body: string, secret = WEBHOOK_SECRET, extra: Record<string, string> = {}) {
-  return new Request("https://earshot.example/api/webhooks/assemblyai", {
+  return new Request("https://twiceheard.example/api/webhooks/assemblyai", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -92,7 +92,7 @@ describe("POST /api/webhooks/assemblyai", () => {
   it("rejects bad signatures, unreadable bodies and oversized deliveries", async () => {
     setServerDeps(testDeps());
     expect((await POST(signed(completed("evt_4"), "x".repeat(40)))).status).toBe(401);
-    const unsigned = new Request("https://earshot.example/api/webhooks/assemblyai", {
+    const unsigned = new Request("https://twiceheard.example/api/webhooks/assemblyai", {
       method: "POST",
       body: completed("evt_5"),
     });

@@ -1,5 +1,5 @@
 {
-  "note": "Timeline of a real synthetic test call on the Voice Agent API (fictional caller), trimmed to the fields Earshot reads. Tools were client-side in that run.",
+  "note": "Timeline of a real synthetic test call on the Voice Agent API (fictional caller), trimmed to the fields Twiceheard reads. Tools were client-side in that run.",
   "session_id": "sess_fixture",
   "started_at_unix_ms": 1789387265442,
   "turns": [

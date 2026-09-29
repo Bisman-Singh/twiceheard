@@ -2,10 +2,10 @@ import { z } from "zod";
 
 /**
  * The session timeline the Voice Agent API stores for every call, reduced to
- * what Earshot uses: who said what, which tools ran with which arguments, and
+ * what Twiceheard uses: who said what, which tools ran with which arguments, and
  * how quickly the agent answered.
  *
- * Parsing is lenient about fields Earshot does not read and strict about the
+ * Parsing is lenient about fields Twiceheard does not read and strict about the
  * ones it does, so a new field from the platform never breaks a chart.
  */
 

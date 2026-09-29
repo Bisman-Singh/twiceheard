@@ -47,7 +47,7 @@ export default function Home() {
     <article className="space-y-12">
       <header className="space-y-4">
         <p className="text-sm font-semibold uppercase tracking-wide text-[var(--accent)]">
-          Earshot
+          Twiceheard
         </p>
         <h1 className="text-4xl font-bold leading-tight">
           Clinic intake by phone, with nothing on the chart you cannot check.
@@ -92,8 +92,8 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-[var(--line)] pt-6 text-sm text-[var(--muted)]">
-        Earshot does not give medical advice. It collects and confirms details for the clinic, and
-        sends anyone describing an emergency to emergency services.
+        Twiceheard does not give medical advice. It collects and confirms details for the clinic,
+        and sends anyone describing an emergency to emergency services.
       </footer>
     </article>
   );

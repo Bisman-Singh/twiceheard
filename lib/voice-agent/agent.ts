@@ -33,7 +33,7 @@ export interface Deployment {
 
 export function agentBody(clinic: Clinic, deployment: Deployment): AgentBody {
   return {
-    name: `earshot-${clinic.id}`,
+    name: `twiceheard-${clinic.id}`,
     system_prompt: systemPrompt(clinic),
     greeting: greeting(clinic),
     voice: { voice_id: clinic.voice },

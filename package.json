@@ -1,5 +1,5 @@
 {
-  "name": "earshot",
+  "name": "twiceheard",
   "version": "0.1.0",
   "private": true,
   "description": "Phone-first clinical intake and booking. A voice agent that takes the call in English, Hindi or Hinglish, confirms every critical field by readback, books the appointment, and hands the clinic a chart where each field is verified or flagged.",

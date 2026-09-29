@@ -5,7 +5,7 @@ import { DEMO_CLINIC } from "@/lib/clinic/config";
 export const metadata: Metadata = {
   title: "Call the demo clinic",
   description:
-    "Talk to Earshot's intake agent in the browser. It collects what a clinic needs before a visit, reads every critical detail back, and books an appointment.",
+    "Talk to Twiceheard's intake agent in the browser. It collects what a clinic needs before a visit, reads every critical detail back, and books an appointment.",
 };
 
 export default function CallPage() {

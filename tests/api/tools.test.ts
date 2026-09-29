@@ -15,7 +15,7 @@ const KEY = toolKeyFor("sunrise-family", SECRET);
 function call(clinicId: string, tool: string, body: unknown, key: string | null = KEY) {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (key !== null) headers[TOOL_KEY_HEADER] = key;
-  const request = new Request(`https://earshot.example/api/tools/${clinicId}/${tool}`, {
+  const request = new Request(`https://twiceheard.example/api/tools/${clinicId}/${tool}`, {
     method: "POST",
     headers,
     body: typeof body === "string" ? body : JSON.stringify(body),

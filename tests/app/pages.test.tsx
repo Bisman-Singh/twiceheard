@@ -38,7 +38,7 @@ describe("root layout", () => {
     );
     expect(within(container).getByRole("main")).toHaveTextContent("child");
     expect(dynamic).toBe("force-dynamic");
-    expect(metadata.title).toMatchObject({ default: "Earshot" });
+    expect(metadata.title).toMatchObject({ default: "Twiceheard" });
     expect(viewport.width).toBe("device-width");
   });
 });

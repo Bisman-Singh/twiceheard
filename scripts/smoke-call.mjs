@@ -10,7 +10,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const OUT = process.argv[2] ?? "/tmp/earshot-smoke";
+const OUT = process.argv[2] ?? "/tmp/twiceheard-smoke";
 const TOOL_MODE = process.env.TOOL_MODE ?? "interactive";
 const TRANSCRIPTION_MODE = process.env.TRANSCRIPTION_MODE ?? "balanced";
 mkdirSync(OUT, { recursive: true });

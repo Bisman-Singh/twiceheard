@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * What a clinic tells Earshot about itself.
+ * What a clinic tells Twiceheard about itself.
  *
  * Everything the agent says about the clinic comes from here, so the agent
  * never invents a doctor, an opening hour or a phone number. The schema is

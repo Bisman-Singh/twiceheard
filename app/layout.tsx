@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Earshot", template: "%s · Earshot" },
+  title: { default: "Twiceheard", template: "%s · Twiceheard" },
   description:
     "Clinic intake by phone. A voice agent takes the call in English, Hindi or Hinglish, reads every critical detail back, books the appointment, and hands the clinic a chart where each field is verified or flagged.",
 };

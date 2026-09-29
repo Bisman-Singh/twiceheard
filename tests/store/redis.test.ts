@@ -107,7 +107,7 @@ describe("redisCallStore", () => {
     await store.save({ ...base, sessionId: "new", processedAt: 2 });
     await store.save({ ...base, sessionId: "gone", processedAt: 3 });
     await store.save({ ...base, sessionId: "elsewhere", clinicId: "other", processedAt: 4 });
-    values.delete("earshot:call:gone");
+    values.delete("twiceheard:call:gone");
     expect((await store.list("sunrise-family", 10)).map((record) => record.sessionId)).toEqual([
       "new",
       "old",

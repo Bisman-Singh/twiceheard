@@ -24,7 +24,7 @@ export interface RedisLike {
   zrange(key: string, start: number, stop: number, options: { rev: true }): Promise<string[]>;
 }
 
-const PREFIX = "earshot";
+const PREFIX = "twiceheard";
 /** Taken times are remembered well past the booking horizon, then drop out on their own. */
 const SLOT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** A webhook delivery id is remembered long enough to outlast every retry. */

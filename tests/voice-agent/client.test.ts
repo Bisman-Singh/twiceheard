@@ -42,13 +42,16 @@ describe("createVoiceAgentClient", () => {
 
   it("creates and updates stored agents", async () => {
     const { impl, calls } = fakeFetch(() =>
-      json({ id: "agent-1", name: "earshot-sunrise-family" }),
+      json({ id: "agent-1", name: "twiceheard-sunrise-family" }),
     );
     const client = createVoiceAgentClient(KEY, impl);
-    const body = agentBody(DEMO_CLINIC, { baseUrl: "https://earshot.example", toolKey: "secret" });
+    const body = agentBody(DEMO_CLINIC, {
+      baseUrl: "https://twiceheard.example",
+      toolKey: "secret",
+    });
     expect(await client.createAgent(body)).toEqual({
       id: "agent-1",
-      name: "earshot-sunrise-family",
+      name: "twiceheard-sunrise-family",
     });
     await client.updateAgent("agent/1", { greeting: "Hi" });
     expect(calls[0]?.init.method).toBe("POST");
@@ -76,13 +79,13 @@ describe("createVoiceAgentClient", () => {
   it("imports and binds a phone number on the phone host, with an idempotency key", async () => {
     const { impl, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     const client = createVoiceAgentClient(KEY, impl);
-    await client.importPhoneNumber("+14155550123", "earshot.pstn.twilio.com", "idem-1");
+    await client.importPhoneNumber("+14155550123", "twiceheard.pstn.twilio.com", "idem-1");
     await client.bindPhoneNumber("+14155550123", "agent-1");
     expect(calls[0]?.url).toBe(`${PHONE_BASE_URL}/v1/phone-numbers/import`);
     expect((calls[0]?.init.headers as Record<string, string>)["Idempotency-Key"]).toBe("idem-1");
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
       phone_number: "+14155550123",
-      termination_uri: "earshot.pstn.twilio.com",
+      termination_uri: "twiceheard.pstn.twilio.com",
     });
     expect(calls[1]?.url).toBe(`${PHONE_BASE_URL}/v1/phone-numbers/%2B14155550123/agent`);
   });

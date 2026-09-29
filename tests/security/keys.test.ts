@@ -6,9 +6,11 @@ const SECRET = "s".repeat(32);
 
 describe("assertSecret", () => {
   it("refuses missing or short secrets and returns a good one", () => {
-    expect(() => assertSecret(undefined, "EARSHOT_SECRET")).toThrow(/EARSHOT_SECRET must be set/);
-    expect(() => assertSecret("short", "EARSHOT_SECRET")).toThrow(/32 characters/);
-    expect(assertSecret(SECRET, "EARSHOT_SECRET")).toBe(SECRET);
+    expect(() => assertSecret(undefined, "TWICEHEARD_SECRET")).toThrow(
+      /TWICEHEARD_SECRET must be set/,
+    );
+    expect(() => assertSecret("short", "TWICEHEARD_SECRET")).toThrow(/32 characters/);
+    expect(assertSecret(SECRET, "TWICEHEARD_SECRET")).toBe(SECRET);
   });
 });
 

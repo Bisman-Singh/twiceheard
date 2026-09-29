@@ -1,4 +1,4 @@
-# Earshot: how work is done here
+# Twiceheard: how work is done here
 
 Phone-first clinic intake. A voice agent answers the clinic's line, collects what the
 doctor needs before the visit, books the appointment, and hands the clinic a chart where

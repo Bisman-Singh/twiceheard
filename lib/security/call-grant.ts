@@ -11,7 +11,7 @@ import { sameSecret } from "@/lib/security/keys";
  * every relayed tool call alongside the same-origin check.
  */
 
-export const CALL_GRANT_COOKIE = "earshot_call";
+export const CALL_GRANT_COOKIE = "twiceheard_call";
 /** A browser intake runs well inside this; after it, the caller starts again. */
 export const CALL_GRANT_TTL_MS = 20 * 60 * 1000;
 

@@ -4,7 +4,7 @@ import { FIELD_IDS } from "@/lib/intake/fields";
  * The tools the agent can call, defined once.
  *
  * Every tool is an HTTP tool on a stored agent, so a phone call works with no
- * client in the loop: AssemblyAI calls Earshot's API directly. Tool requests
+ * client in the loop: AssemblyAI calls Twiceheard's API directly. Tool requests
  * carry only the model's arguments, so the first call, `start_intake`, hands
  * the agent a short intake id that every later call repeats. That id is what
  * lets the live board follow a call; the authoritative record is rebuilt
@@ -160,7 +160,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
 ];
 
 /** Tool secrets travel in this header; the platform stores header values write-only. */
-export const TOOL_KEY_HEADER = "x-earshot-tool-key";
+export const TOOL_KEY_HEADER = "x-twiceheard-tool-key";
 
 export interface HttpTool extends ToolSpec {
   http: { url: string; http_method: "POST"; headers: Array<{ name: string; value: string }> };
