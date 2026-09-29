@@ -129,9 +129,10 @@ does not check this today. Date of birth is validated as a real past date within
 nothing in the code refuses a caller who turns out to be a child or asks for a parent. A real
 deployment would have to solve that before taking calls.
 
-**Rights.** A real deployment would also need a way for a caller to see, correct and delete what is
-held about them. Showing the chart back to the caller who just called is a start, and it is only a
-start.
+**Rights.** A caller can see the chart of the call they just made, and delete it from the same page.
+What is still missing is correction: there is no way for a caller to change a value after the call,
+and no way to reach a chart from an earlier call once the browser's grant has expired. A real
+deployment would have to solve both.
 
 ## What this page is not
 
