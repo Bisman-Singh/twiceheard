@@ -60,13 +60,23 @@ describe("the chart a caller is shown", () => {
             issues: [
               { field: "full_name", issue: "readback_not_spoken" },
               { field: "phone", issue: "caller_did_not_agree", callerSaid: "no that is wrong" },
+              {
+                field: "medications",
+                issue: "caller_did_not_confirm",
+                callerSaid: "I would have to check the box at home",
+              },
             ],
           },
         )}
       />,
     );
     expect(row("Full name").getByText(/recorded this without reading it back/)).toBeInTheDocument();
-    expect(row("Phone number").getByText(/did not agree to the value/)).toBeInTheDocument();
+    expect(row("Phone number").getByText(/said no to the value/)).toBeInTheDocument();
+    // A caller who answered without saying yes did not object, and the line the clinic
+    // reads should not say they did.
+    expect(
+      row("Current medications").getByText(/answered the readback, but not with a yes/),
+    ).toBeInTheDocument();
   });
 
   it("says when the grades rest on the conversation alone, and shows what was booked or escalated", () => {

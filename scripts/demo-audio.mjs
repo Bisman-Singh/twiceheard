@@ -29,9 +29,12 @@ const SCRIPT = [
   ["It is nine eight one two three four five six seven eight.", 15],
   ["Yes, that's right.", 11],
   ["I take Metformin every day.", 14],
-  // Deliberately not a yes. The caller answers the readback without agreeing to it, which is
-  // what the product is built to notice, so the recording shows a field that ends amber.
-  ["That's the only one I take.", 12],
+  // Deliberately not a confirmation, and deliberately a reasonable thing for a patient
+  // to say. The clinic should ring back about this line, which is the whole point: the
+  // chart has to show that nobody ever confirmed it. An earlier version of this script
+  // used "That's the only one I take", which reads as agreement to anyone listening and
+  // made the flag look pedantic rather than useful.
+  ["I am not certain of the name, I would have to check the box at home.", 13],
   ["No allergies.", 13],
   ["Yes, that's right.", 11],
   ["Tomorrow morning would suit me.", 14],

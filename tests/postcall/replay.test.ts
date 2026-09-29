@@ -456,10 +456,12 @@ describe("a caller who does not follow the script", () => {
     // The caller asked to hear it again. That is not a yes, and this field used to
     // come out confirmed and green off it.
     expect(replay.chart.phone.status).toBe("heard");
+    // Not a refusal: the caller asked to hear it again. The chart says exactly that,
+    // rather than telling the clinic the caller objected.
     expect(replay.issues).toEqual([
       {
         field: "phone",
-        issue: "caller_did_not_agree",
+        issue: "caller_did_not_confirm",
         callerSaid: "Sorry, I didn't hear you right.",
       },
     ]);
@@ -532,5 +534,32 @@ describe("a caller who does not follow the script", () => {
         "So, I have your date of birth as March twelfth, nineteen ninety. Is that right?",
       ),
     ).toBe(true);
+  });
+
+  it("tells the desk whether the caller objected or simply never said yes", () => {
+    const answer = (said: string) =>
+      replayChart(
+        [
+          caller("I take metformin every day"),
+          save("medications", "metformin", "heard"),
+          agent("I have your medications as metformin. Is that the complete list?"),
+          caller(said),
+          save("medications", "metformin", "confirmed"),
+        ],
+        context,
+      ).issues[0];
+
+    // Leading with a no, or calling the value wrong, is the caller objecting.
+    expect(answer("No, I also take aspirin.")).toMatchObject({ issue: "caller_did_not_agree" });
+    expect(answer("That is wrong.")).toMatchObject({ issue: "caller_did_not_agree" });
+    // A "not" inside a careful answer is not an objection, and saying it was would be
+    // telling a clinic something untrue about its own patient.
+    expect(
+      answer("I am not certain of the name, I would have to check the box at home."),
+    ).toMatchObject({
+      issue: "caller_did_not_confirm",
+      callerSaid: "I am not certain of the name, I would have to check the box at home.",
+    });
+    expect(answer("Hold on a moment.")).toMatchObject({ issue: "caller_did_not_confirm" });
   });
 });

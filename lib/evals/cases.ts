@@ -485,6 +485,37 @@ export const EVAL_CASES: readonly EvalCase[] = [
   },
   {
     kind: "grade",
+    id: "caller-answered-without-a-yes",
+    category: "readback",
+    checks: "A confirmation recorded after the caller answered the readback, but not with a yes.",
+    input: {
+      kind: "timeline",
+      events: [
+        callerTurn("I take metformin every day"),
+        saveFieldCall("medications", "metformin", "heard"),
+        agentTurn("I have your medications as metformin. Is that the complete list?"),
+        // A reasonable thing for a patient to say, and not a confirmation. The clinic
+        // should be told that nobody confirmed it, and should not be told the caller
+        // objected, because they did not.
+        callerTurn("I am not certain of the name, I would have to check the box at home."),
+        saveFieldCall("medications", "metformin", "confirmed"),
+      ],
+    },
+    caller: [said("i take metformin every day", CLEAR)],
+    expected: {
+      fields: [{ field: "medications", grade: "amber", reasons: [NOT_CONFIRMED] }],
+      issues: [
+        {
+          field: "medications",
+          issue: "caller_did_not_confirm",
+          callerSaid: "I am not certain of the name, I would have to check the box at home.",
+        },
+      ],
+      ready: false,
+    },
+  },
+  {
+    kind: "grade",
     id: "confirmation-with-no-readback-at-all",
     category: "readback",
     checks: "A confirmation for a field nothing was ever read back for.",

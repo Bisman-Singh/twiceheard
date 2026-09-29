@@ -20,7 +20,8 @@ export type ReplayIssue =
   | { field: FieldId; issue: "readback_interrupted" }
   | { field: FieldId; issue: "one_yes_two_values"; alsoAnswered: FieldId }
   | { field: FieldId; issue: "no_answer_after_readback" }
-  | { field: FieldId; issue: "caller_did_not_agree"; callerSaid: string };
+  | { field: FieldId; issue: "caller_did_not_agree"; callerSaid: string }
+  | { field: FieldId; issue: "caller_did_not_confirm"; callerSaid: string };
 
 export interface Replay {
   chart: Chart;
@@ -188,6 +189,23 @@ export function wasSpoken(sentence: string, agentSaid: string): boolean {
   return wanted.length > 0 && found / wanted.length >= SPOKEN_OVERLAP;
 }
 
+/**
+ * A clear no: the caller pushed back on what was read to them.
+ *
+ * Not any negative anywhere in the answer. "I am not certain of the name" is a
+ * patient being careful, not a patient saying the value is wrong, and telling a
+ * clinic the caller objected would be telling it something untrue. A refusal
+ * leads with a no, or calls the value wrong. Either way the field is still held
+ * back from green; this only decides which sentence the desk reads.
+ */
+const REFUSAL_LEAD =
+  /^[\s.,!?।"']*(no|nope|nahi|nahin)\b|^[\s.,!?।"']*(नहीं|नही|ना|न)(?![\p{L}\p{M}\p{N}])/iu;
+const CALLED_WRONG = /\b(wrong|incorrect|galat)\b|(?<![\p{L}\p{M}\p{N}])गलत(?![\p{L}\p{M}\p{N}])/iu;
+
+export function isRefusal(text: string): boolean {
+  return REFUSAL_LEAD.test(text) || CALLED_WRONG.test(text);
+}
+
 /** A clear yes: affirmative words and no negative ones. "No, that's right" is not a yes. */
 export function isAgreement(text: string): boolean {
   return (YES.test(text) || JI_ALONE.test(text) || RIGHT_ALONE.test(text)) && !NO.test(text);
@@ -329,7 +347,17 @@ function checkConfirmation(field: FieldId, state: ReplayState): Verdict | null {
   const { answer } = readback;
   if (!answer) return { field, issue: "no_answer_after_readback" };
   if (!isAgreement(answer.text)) {
-    return { field, issue: "caller_did_not_agree", callerSaid: answer.text.slice(0, 200) };
+    // Saying no and saying something that is not a yes are different things, and a
+    // clinic reading the chart should not be told the caller objected when they
+    // answered "I would have to check the box at home". Both are held back from
+    // green, because a confirmation still has to be a yes, but the desk is told
+    // which of the two it is and what was actually said.
+    const refused = isRefusal(answer.text);
+    return {
+      field,
+      issue: refused ? "caller_did_not_agree" : "caller_did_not_confirm",
+      callerSaid: answer.text.slice(0, 200),
+    };
   }
   // A field confirmed twice off one yes is the model repeating itself, not two values.
   const spentBy = state.agreementSpentAt.get(answer.at);

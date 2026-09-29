@@ -48,8 +48,12 @@ test("@live a whole call, recorded, ending in the chart the clinic receives", as
   await expect(slip).toContainText("Arjun Mehta", { timeout: 90_000 });
   await expect(slip).toContainText("Date of birth", { timeout: 120_000 });
   await expect(slip).toContainText("Allergies", { timeout: 180_000 });
+  // The call is not finished until a time has been offered and taken: a chart with an
+  // appointment on it is what a clinic actually receives, and the booking is the part
+  // the caller came for.
+  await expect(slip).toContainText(/booked for/i, { timeout: 180_000 });
 
-  await page.waitForTimeout(20_000);
+  await page.waitForTimeout(8000);
   await page.getByRole("button", { name: "End the call" }).click();
   await expect(page.getByText("Call ended.")).toBeVisible();
 

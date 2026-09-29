@@ -29,7 +29,9 @@ const ISSUE_WORDS = {
   readback_interrupted:
     "The caller spoke over this being read back, so they did not hear all of it.",
   one_yes_two_values: "One yes was taken as agreement to two values at once.",
-  caller_did_not_agree: "The caller did not agree to the value that was read back.",
+  caller_did_not_agree: "The caller said no to the value that was read back.",
+  caller_did_not_confirm:
+    "The caller answered the readback, but not with a yes, so the value is not confirmed.",
 } as const;
 
 export function VerifiedChart({

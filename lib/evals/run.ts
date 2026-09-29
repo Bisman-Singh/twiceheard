@@ -69,7 +69,9 @@ function describeIssue(issue: ReplayIssue): string {
     case "one_yes_two_values":
       return `${issue.field}: one yes shared with ${issue.alsoAnswered}`;
     case "caller_did_not_agree":
-      return `${issue.field}: caller said "${issue.callerSaid}"`;
+      return `${issue.field}: caller said no, "${issue.callerSaid}"`;
+    case "caller_did_not_confirm":
+      return `${issue.field}: caller did not say yes, "${issue.callerSaid}"`;
   }
 }
 
