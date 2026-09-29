@@ -44,21 +44,27 @@ const completed = (eventId: string, sessionId = "sess_fixture") =>
     session: { session_id: sessionId },
   });
 
+/** A finished session the platform will hand over, with its timeline ready to fetch. */
+function readySession() {
+  const session: SessionDetail = {
+    id: "sess_fixture",
+    agent_id: "agent-sunrise",
+    status: "completed",
+    artifacts: [{ type: "timeline", url: "https://cdn.assemblyai.com/t.json" }],
+  };
+  const deps = testDeps();
+  vi.mocked(deps.voice.getSession).mockResolvedValue(session);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(timeline)),
+  );
+  setServerDeps(deps);
+  return deps;
+}
+
 describe("POST /api/webhooks/assemblyai", () => {
   it("acknowledges a signed completion at once, then processes the call into a graded record", async () => {
-    const session: SessionDetail = {
-      id: "sess_fixture",
-      agent_id: "agent-sunrise",
-      status: "completed",
-      artifacts: [{ type: "timeline", url: "https://cdn.assemblyai.com/t.json" }],
-    };
-    const deps = testDeps();
-    vi.mocked(deps.voice.getSession).mockResolvedValue(session);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(timeline)),
-    );
-    setServerDeps(deps);
+    const deps = readySession();
 
     const response = await POST(signed(completed("evt_1")));
     expect(await response.json()).toEqual({ received: true });
@@ -70,12 +76,31 @@ describe("POST /api/webhooks/assemblyai", () => {
     expect(record?.hearing).toBe("unavailable");
   });
 
-  it("does the work once however many times a delivery is retried", async () => {
-    setServerDeps(testDeps());
+  it("does the work once when a delivery is retried after it succeeded", async () => {
+    const deps = readySession();
     await POST(signed(completed("evt_2")));
+    await queued[0]?.();
+    expect(await deps.calls.get("sess_fixture")).not.toBeNull();
+
     const retry = await POST(signed(completed("evt_2")));
     expect(await retry.json()).toEqual({ received: true, duplicate: true });
-    expect(queued).toHaveLength(1);
+    await queued[1]?.();
+    // The call was already charted, so the retry did not fetch and rebuild it again.
+    expect(deps.voice.getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("does the work on a retry when the first delivery failed, so a call is not lost", async () => {
+    const deps = readySession();
+    vi.mocked(deps.voice.getSession).mockRejectedValueOnce(new Error("platform down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await POST(signed(completed("evt_3")));
+    await queued[0]?.();
+    expect(await deps.calls.get("sess_fixture")).toBeNull();
+
+    // The platform retries the same delivery. Nothing was charted, so the work runs again.
+    await POST(signed(completed("evt_3")));
+    await queued[1]?.();
+    expect(await deps.calls.get("sess_fixture")).not.toBeNull();
   });
 
   it("acknowledges events it does not act on", async () => {

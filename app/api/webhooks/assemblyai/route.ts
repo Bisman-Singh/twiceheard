@@ -37,14 +37,19 @@ export async function POST(request: Request): Promise<Response> {
     }
     const delivery = deliverySchema.safeParse(safeJson(raw));
     if (!delivery.success) throw new HttpError(400, "invalid_request");
-    if (!(await deps.firstDelivery(delivery.data.event_id))) {
-      return Response.json({ received: true, duplicate: true });
-    }
+    const fresh = await deps.firstDelivery(delivery.data.event_id);
     const sessionId = delivery.data.session?.session_id;
     if (delivery.data.event === "session.completed" && sessionId) {
-      after(() => processWithRetry(sessionId, postCallDeps(deps)).then(() => undefined));
+      after(async () => {
+        // A repeat delivery is skipped only once the call really is charted. The platform
+        // retries a delivery whose processing failed, and that retry is the only thing
+        // standing between a failed call and a chart the clinic never sees.
+        if (fresh || !(await deps.calls.get(sessionId))) {
+          await processWithRetry(sessionId, postCallDeps(deps));
+        }
+      });
     }
-    return Response.json({ received: true });
+    return Response.json({ received: true, ...(fresh ? {} : { duplicate: true }) });
   } catch (error) {
     return jsonError(error);
   }
