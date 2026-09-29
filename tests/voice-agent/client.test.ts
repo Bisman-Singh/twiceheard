@@ -56,7 +56,9 @@ describe("createVoiceAgentClient", () => {
     await client.updateAgent("agent/1", { greeting: "Hi" });
     expect(calls[0]?.init.method).toBe("POST");
     expect(JSON.parse(String(calls[0]?.init.body)).tools).toHaveLength(7);
-    expect(calls[1]?.url).toBe(`${AGENTS_BASE_URL}/v1/agents/agent%2F1`);
+    expect(calls[1]?.url).toBe(`${PHONE_BASE_URL}/v1/agents/agent%2F1`);
+    // Both live on the regional host. An agent created elsewhere cannot be bound to a number.
+    expect(calls[0]?.url).toBe(`${PHONE_BASE_URL}/v1/agents`);
     expect(calls[1]?.init.method).toBe("PUT");
   });
 

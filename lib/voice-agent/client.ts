@@ -12,7 +12,11 @@ import type { AgentBody } from "@/lib/voice-agent/agent";
  */
 
 export const AGENTS_BASE_URL = "https://agents.assemblyai.com";
-/** Phone numbers are managed on the US host. */
+/**
+ * Stored agents and phone numbers both live on the regional host, and they have
+ * to be the same one. An agent created on the global host cannot be bound to a
+ * number: the phone API answers `agent_not_found`, which was found by doing it.
+ */
 export const PHONE_BASE_URL = "https://agents.us.assemblyai.com";
 
 const TIMEOUT_MS = 15_000;
@@ -104,17 +108,17 @@ export function createVoiceAgentClient(
     },
     async createAgent(body) {
       const init = { method: "POST", body: JSON.stringify(body) };
-      return agentSchema.parse(await call(`${AGENTS_BASE_URL}/v1/agents`, init));
+      return agentSchema.parse(await call(`${PHONE_BASE_URL}/v1/agents`, init));
     },
     async updateAgent(agentId, body) {
       const init = { method: "PUT", body: JSON.stringify(body) };
       return agentSchema.parse(
-        await call(`${AGENTS_BASE_URL}/v1/agents/${encodeURIComponent(agentId)}`, init),
+        await call(`${PHONE_BASE_URL}/v1/agents/${encodeURIComponent(agentId)}`, init),
       );
     },
     async getSession(sessionId) {
       return sessionSchema.parse(
-        await call(`${AGENTS_BASE_URL}/v1/sessions/${encodeURIComponent(sessionId)}`),
+        await call(`${PHONE_BASE_URL}/v1/sessions/${encodeURIComponent(sessionId)}`),
       );
     },
     async importPhoneNumber(phoneNumber, terminationUri, idempotencyKey) {

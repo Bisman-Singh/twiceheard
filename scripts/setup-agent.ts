@@ -69,8 +69,9 @@ if (!apply) {
   process.exit(0);
 }
 
-const AGENTS = "https://agents.assemblyai.com";
-const PHONE = "https://agents.us.assemblyai.com";
+// One host for both, or the number cannot be bound to the agent.
+const AGENTS = "https://agents.us.assemblyai.com";
+const PHONE = AGENTS;
 
 async function send(url: string, init: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
