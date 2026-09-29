@@ -67,7 +67,7 @@ export async function processSession(
     () =>
       replayChart(
         events,
-        { country: clinic.country },
+        { country: clinic.country, timezone: clinic.timezone },
         timeline.started_at_unix_ms ?? deps.now().getTime(),
       ),
     { chart: emptyChart(), issues: [] },
@@ -83,7 +83,10 @@ export async function processSession(
   );
 
   const record: CallRecord = {
-    sessionId: session.id,
+    // Filed under the id this was asked about, not the one the session echoes back.
+    // Every reader of a record has the former: the page, the result route and the
+    // webhook all look it up by the id they were given.
+    sessionId,
     clinicId: clinic.id,
     processedAt: deps.now().getTime(),
     startedAt: timeline.started_at_unix_ms ?? null,

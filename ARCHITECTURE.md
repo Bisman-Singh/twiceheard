@@ -18,8 +18,9 @@ phone call needs no client in the loop.
    the model has to repeat it on every later call.
 3. The caller gives a value. The agent calls `save_field` with status `heard`. The route validates the
    key, the body and the arguments, then `lib/intake/chart.ts` normalises the value and returns the
-   readback sentence. Almost every tool runs in the platform's hold mode, which means the sentence is
-   spoken verbatim. That matters when the sentence is a readback.
+   readback sentence. The sentence is built here rather than by the model, and the agent is
+   instructed to speak it exactly as given. Nothing in the platform enforces that, which is why
+   `lib/postcall/replay.ts` checks after the call that what was actually said matches it.
 4. The caller says yes. The agent calls `save_field` again with the same value and status `confirmed`.
    The reducer accepts it only because that exact value was read back. A different value is demoted
    back to `heard` and read again. A value that is still not right after three tries is left

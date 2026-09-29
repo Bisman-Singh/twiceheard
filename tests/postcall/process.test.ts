@@ -117,6 +117,63 @@ describe("processSession", () => {
     }
   });
 
+  it("files the record under the id it was asked about, not the one the session echoes", async () => {
+    // The page, the result route and the webhook all look a record up by the id they
+    // were given. A record filed under the platform's echo is a record nobody finds.
+    const d = deps({ getSession: async () => ({ ...session, id: "sess_platform_echo" }) });
+    const record = await processSession("sess_asked", d);
+    expect(record?.sessionId).toBe("sess_asked");
+    expect(await d.calls.get("sess_asked")).toEqual(record);
+  });
+
+  it("dates the call by the clinic's own zone, not the usual one for its country", async () => {
+    // 06:00 UTC on the 14th is already the 14th in New York and still the 13th in
+    // Honolulu, so the same date of birth is a real date for one clinic and the
+    // future for the other.
+    const dated = {
+      started_at_unix_ms: Date.parse("2026-09-14T06:00:00Z"),
+      turns: [
+        {
+          turn_id: "t1",
+          user_transcript: "Today, the fourteenth of September.",
+          user_confidence: 1,
+        },
+        {
+          turn_id: "t2",
+          tool_calls: [
+            {
+              call_id: "c1",
+              name: "save_field",
+              arguments: { field: "date_of_birth", status: "heard", value: "2026-09-14" },
+            },
+          ],
+          agent_text: "I have your date of birth as 14 September 2026. Is that right?",
+        },
+        { turn_id: "t3", user_transcript: "Yes, that's right.", user_confidence: 1 },
+        {
+          turn_id: "t4",
+          tool_calls: [
+            {
+              call_id: "c2",
+              name: "save_field",
+              arguments: { field: "date_of_birth", status: "confirmed", value: "2026-09-14" },
+            },
+          ],
+        },
+      ],
+    };
+    const at = async (timezone: string) => {
+      const clinic: Clinic = { ...DEMO_CLINIC, country: "US", timezone };
+      const record = await processSession(
+        "sess_zoned",
+        deps({ fetchJson: async () => dated, clinicForAgent: () => clinic }),
+      );
+      return record?.chart.date_of_birth.value ?? null;
+    };
+    expect(await at("America/New_York")).toBe("2026-09-14");
+    expect(await at("Pacific/Honolulu")).toBeNull();
+  });
+
   it("builds the chart from the turns it can read when one arrives in a shape it cannot", async () => {
     const damaged = {
       ...timeline,

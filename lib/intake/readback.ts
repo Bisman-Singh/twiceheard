@@ -5,8 +5,9 @@ import type { FieldSpec, FieldValue } from "@/lib/intake/fields";
  *
  * It is built here, not by the model, so digits are spoken one at a time in
  * the groups people use, dates never come out in the wrong order, and a list
- * is read in full. The agent is told to say it exactly; the platform's hold
- * mode keeps to that wording.
+ * is read in full. The agent is told to say it exactly, but nothing makes it:
+ * the model can paraphrase or be cut off, so `lib/postcall/replay.ts` compares
+ * this sentence against what the recording shows was actually spoken.
  */
 
 const DIGIT_WORDS = [
