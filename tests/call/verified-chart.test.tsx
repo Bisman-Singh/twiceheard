@@ -17,6 +17,7 @@ describe("the chart a caller is shown", () => {
         record={callRecord(
           {
             full_name: { value: "Arjun Mehta", status: "confirmed" },
+            date_of_birth: { value: "1990-03-12", status: "confirmed" },
             phone: { value: "+919812345678", status: "heard" },
             allergies: { value: [], status: "confirmed" },
             medications: { value: ["Metformin", "Amlodipine"], status: "confirmed" },
@@ -40,8 +41,10 @@ describe("the chart a caller is shown", () => {
     ).toBeInTheDocument();
     expect(row("Phone number").getByText("check")).toBeInTheDocument();
     expect(row("Phone number").getByText(/not confirmed by the caller/)).toBeInTheDocument();
-    expect(row("Date of birth").getByText("not captured")).toBeInTheDocument();
-    expect(row("Date of birth").getByText("missing")).toBeInTheDocument();
+    // A date is shown as it was read back, not as it is stored.
+    expect(row("Date of birth").getByText("12 March 1990")).toBeInTheDocument();
+    expect(row("Preferred time").getByText("not captured")).toBeInTheDocument();
+    expect(row("Preferred time").getByText("check")).toBeInTheDocument();
     expect(screen.getByText(/Graded on the conversation and on the recording/)).toBeInTheDocument();
     expect(screen.getByText("No appointment was booked on this call.")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

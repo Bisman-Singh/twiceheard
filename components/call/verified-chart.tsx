@@ -1,4 +1,5 @@
-import { FIELDS, type FieldValue } from "@/lib/intake/fields";
+import { FIELDS, type FieldId, type FieldValue } from "@/lib/intake/fields";
+import { spokenDate } from "@/lib/intake/readback";
 import type { Grade } from "@/lib/intake/grade";
 import type { CallRecord } from "@/lib/postcall/record";
 
@@ -59,7 +60,7 @@ export function VerifiedChart({
           >
             <dt className="font-semibold">{FIELDS[field.id].label}</dt>
             <dd className="max-sm:col-span-2 max-sm:row-start-2">
-              {shown(record.chart[field.id].value)}
+              {shown(field.id, record.chart[field.id].value)}
               {(field.reasons.length > 0 || issues.has(field.id)) && (
                 <span className="block text-[var(--muted)]">
                   {[...field.reasons, issues.get(field.id)].filter(Boolean).join(" ")}
@@ -84,9 +85,12 @@ export function VerifiedChart({
   );
 }
 
-/** An empty list is the caller saying "none", which is an answer, not a blank. */
-function shown(value: FieldValue | null): string {
+/**
+ * An empty list is the caller saying "none", which is an answer, not a blank.
+ * A date is shown the way it was read back, not the way it is stored.
+ */
+function shown(id: FieldId, value: FieldValue | null): string {
   if (value === null) return "not captured";
   if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "none";
-  return String(value);
+  return FIELDS[id].kind === "date" ? spokenDate(String(value)) : String(value);
 }
