@@ -8,12 +8,19 @@
 #
 # Two rules decide the edit. The call's own audio never has a gap longer than about six
 # seconds, so narration is never laid over it: it plays before the call starts and after
-# it ends, and the conversation carries the middle on its own. And the recording has
-# about twenty seconds of dead air between the call ending and the chart appearing, which
-# is honest on screen and unwatchable on video, so that stretch is cut.
+# it ends, and the conversation carries the middle on its own. And there is a stretch of
+# dead air between the call ending and the chart appearing, which is honest on screen and
+# unwatchable on video, so most of it is cut while leaving the "listening to the recording
+# a second time" message on screen long enough to read.
 #
-# Lines 2, 3 and 5 of the narration are deliberately unused. They were written to sit over
-# the conversation, and they talked across it.
+# Lines 2 and 3 are deliberately unused. They were written to sit over the conversation,
+# and they talked across it.
+#
+# The timings below belong to one particular recording. Re-record and they all move: find
+# the new ones with
+#   ffprobe -v error -show_entries format=duration -of csv=p=0 twiceheard-call.webm
+#   ffmpeg -i twiceheard-call.webm -vf "select='gt(scene,0.06)',showinfo" -an -f null -
+# where the last scene change is the chart arriving.
 #
 # Usage: scripts/demo-video.sh [dir] [out]
 set -euo pipefail
@@ -24,30 +31,34 @@ OUT="${2:-$DIR/twiceheard-demo.mp4}"
 VIDEO="$DIR/twiceheard-call.webm"
 BED="$DIR/call-audio.ogg"
 
-for f in "$VIDEO" "$BED" "$DIR"/line-{1,4,6}.wav; do
+for f in "$VIDEO" "$BED" "$DIR"/line-{1,4,5,6}.wav; do
   [ -f "$f" ] || { echo "missing: $f" >&2; exit 1; }
 done
 
 # The opening frame is held while the first line is spoken, so the call begins in silence.
-LEAD_IN=11.5
+LEAD_IN=11
 # Where the call starts inside the recording, and the dead wait to cut out of it.
-CALL_STARTS_AT=3
-CUT_FROM=172
-CUT_TO=186
-TAIL_END=222
+CALL_STARTS_AT=4
+CUT_FROM=174
+CUT_TO=180
+TAIL_END=218.2
 
 # Each narration line's position on the finished timeline, in seconds.
 # In milliseconds. ffmpeg accepts a seconds suffix here in principle and ignores it in
 # practice, which put the whole call underneath the opening narration and was only caught
 # by listening. Milliseconds are what this filter actually honours.
 OPENING_MS=800
-AFTER_CALL_MS=179500
-ON_THE_CHART_MS=206000
+# As the call ends and the page says it is listening to the recording again.
+AFTER_CALL_MS=178500
+# As the chart arrives.
+ON_THE_CHART_MS=187500
+# On the one line that did not come out verified, which is what the call was for.
+ON_THE_FLAG_MS=194000
 BED_AT_MS=$(python3 -c "print(int((${LEAD_IN} + ${CALL_STARTS_AT}) * 1000))")
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "$VIDEO" -i "$BED" \
-  -i "$DIR/line-1.wav" -i "$DIR/line-4.wav" -i "$DIR/line-6.wav" \
+  -i "$DIR/line-1.wav" -i "$DIR/line-4.wav" -i "$DIR/line-5.wav" -i "$DIR/line-6.wav" \
   -filter_complex "
     [0:v]trim=0:${CUT_FROM},setpts=PTS-STARTPTS,
          tpad=start_mode=clone:start_duration=${LEAD_IN}[v1];
@@ -56,8 +67,9 @@ ffmpeg -hide_banner -loglevel error -y \
     [1:a]adelay=${BED_AT_MS}|${BED_AT_MS},volume=0.95[bed];
     [2:a]adelay=${OPENING_MS}|${OPENING_MS}[l1];
     [3:a]adelay=${AFTER_CALL_MS}|${AFTER_CALL_MS}[l4];
-    [4:a]adelay=${ON_THE_CHART_MS}|${ON_THE_CHART_MS}[l6];
-    [bed][l1][l4][l6]amix=inputs=4:normalize=0:duration=longest,
+    [4:a]adelay=${ON_THE_CHART_MS}|${ON_THE_CHART_MS}[l5];
+    [5:a]adelay=${ON_THE_FLAG_MS}|${ON_THE_FLAG_MS}[l6];
+    [bed][l1][l4][l5][l6]amix=inputs=5:normalize=0:duration=longest,
          alimiter=limit=0.95[aout]
   " \
   -map "[vout]" -map "[aout]" \
