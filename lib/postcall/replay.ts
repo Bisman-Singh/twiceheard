@@ -16,6 +16,7 @@ import type { CallEvent } from "@/lib/postcall/timeline";
 
 export type ReplayIssue =
   | { field: FieldId; issue: "readback_not_spoken" }
+  | { field: FieldId; issue: "no_answer_after_readback" }
   | { field: FieldId; issue: "caller_did_not_agree"; callerSaid: string };
 
 export interface Replay {
@@ -56,11 +57,17 @@ export function isAgreement(text: string): boolean {
   return YES.test(text) && !NO.test(text);
 }
 
+/** A readback, and the point in the call at which the agent was heard to say it. */
+interface Readback {
+  sentence: string;
+  spokenAt: number | null;
+}
+
 interface ReplayState {
   chart: Chart;
   issues: ReplayIssue[];
-  pending: Map<FieldId, { sentence: string; spoken: boolean }>;
-  lastCaller: string;
+  pending: Map<FieldId, Readback>;
+  lastCaller: { text: string; at: number };
 }
 
 export function replayChart(
@@ -71,18 +78,23 @@ export function replayChart(
     chart: emptyChart(),
     issues: [],
     pending: new Map(),
-    lastCaller: "",
+    lastCaller: { text: "", at: -1 },
   };
+  // Position in the call, so an agreement can be tied to the readback it answers.
+  let step = 0;
   for (const event of events) {
-    if (event.kind === "caller") state.lastCaller = event.text;
-    else if (event.kind === "agent") markSpoken(state, event.text);
+    step += 1;
+    if (event.kind === "caller") state.lastCaller = { text: event.text, at: step };
+    else if (event.kind === "agent") markSpoken(state, event.text, step);
     else if (event.name === "save_field" && !event.failed) applySave(state, event, context);
   }
   return { chart: state.chart, issues: state.issues };
 }
 
-function markSpoken(state: ReplayState, agentSaid: string): void {
-  for (const entry of state.pending.values()) entry.spoken ||= wasSpoken(entry.sentence, agentSaid);
+function markSpoken(state: ReplayState, agentSaid: string, step: number): void {
+  for (const entry of state.pending.values()) {
+    if (entry.spokenAt === null && wasSpoken(entry.sentence, agentSaid)) entry.spokenAt = step;
+  }
 }
 
 function applySave(
@@ -105,22 +117,25 @@ function applySave(
   );
   state.chart = outcome.chart;
   if (outcome.reply.say && isFieldId(input.field)) {
-    state.pending.set(input.field, { sentence: outcome.reply.say, spoken: false });
+    state.pending.set(input.field, { sentence: outcome.reply.say, spokenAt: null });
   }
 }
 
 function checkConfirmation(
   field: string,
-  pending: ReadonlyMap<FieldId, { sentence: string; spoken: boolean }>,
-  lastCaller: string,
+  pending: ReadonlyMap<FieldId, Readback>,
+  lastCaller: { text: string; at: number },
 ): ReplayIssue | null {
   if (!isFieldId(field)) return null;
   const readback = pending.get(field);
   // Nothing was read back: the reducer itself refuses this confirmation, with no issue to add.
   if (!readback) return null;
-  if (!readback.spoken) return { field, issue: "readback_not_spoken" };
-  if (!isAgreement(lastCaller))
-    return { field, issue: "caller_did_not_agree", callerSaid: lastCaller.slice(0, 200) };
+  if (readback.spokenAt === null) return { field, issue: "readback_not_spoken" };
+  // The yes has to answer this readback. A yes given to an earlier field was about that field.
+  if (lastCaller.at <= readback.spokenAt) return { field, issue: "no_answer_after_readback" };
+  if (!isAgreement(lastCaller.text)) {
+    return { field, issue: "caller_did_not_agree", callerSaid: lastCaller.text.slice(0, 200) };
+  }
   return null;
 }
 

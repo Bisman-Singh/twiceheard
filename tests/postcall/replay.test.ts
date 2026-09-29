@@ -66,6 +66,28 @@ describe("replayChart", () => {
     expect(replay.chart.date_of_birth).toMatchObject({ status: "confirmed", value: "1990-03-12" });
   });
 
+  it("does not let a yes given to one field confirm the next one", () => {
+    const replay = replayChart(
+      [
+        caller("My name is Arjun Mehta"),
+        save("full_name", "Arjun Mehta", "heard"),
+        agent("I have your name as Arjun Mehta. Is that right?"),
+        caller("Yes, that's correct."),
+        save("full_name", "Arjun Mehta", "confirmed"),
+        save("phone", "98765 43210", "heard"),
+        agent(
+          "I have your number as nine eight seven six five, four three two one zero. Is that right?",
+        ),
+        // The caller says nothing here, and the model reports a confirmation anyway.
+        save("phone", "98765 43210", "confirmed"),
+      ],
+      context,
+    );
+    expect(replay.chart.full_name.status).toBe("confirmed");
+    expect(replay.chart.phone.status).toBe("heard");
+    expect(replay.issues).toEqual([{ field: "phone", issue: "no_answer_after_readback" }]);
+  });
+
   it("does not accept a confirmation the agent never read back aloud", () => {
     const replay = replayChart(
       [

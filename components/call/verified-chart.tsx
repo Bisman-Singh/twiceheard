@@ -24,6 +24,7 @@ const GRADE_INK: Record<Grade, string> = {
 
 const ISSUE_WORDS = {
   readback_not_spoken: "The agent recorded this without reading it back.",
+  no_answer_after_readback: "The caller never answered when this was read back.",
   caller_did_not_agree: "The caller did not agree to the value that was read back.",
 } as const;
 
