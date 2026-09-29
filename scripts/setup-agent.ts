@@ -7,8 +7,12 @@
 //
 // Usage:
 //   node --import ./scripts/alias-hook.mjs scripts/setup-agent.ts \
-//     --base-url https://example.com [--clinic sunrise-family] \
+//     --base-url https://example.com [--env .env.production] [--clinic sunrise-family] \
 //     [--number +14155550123 --termination-uri example.pstn.twilio.com] [--apply]
+//
+// --env is the environment file holding the key and the secret of the deployment
+// --base-url serves from. It defaults to .env.local, which is right for a laptop and
+// wrong for production, whose secret is its own.
 //
 // The agent id it prints has to go into the deployment's environment as
 // TWICEHEARD_AGENT_ID, or a browser call will keep configuring the agent inline.
@@ -22,13 +26,23 @@ function arg(name: string): string | undefined {
   return at === -1 ? undefined : process.argv[at + 1];
 }
 
+/**
+ * The same shape the runtime gets: quotes stripped, `export` ignored, comments
+ * dropped. Keeping the quotes on a value written as `TWICEHEARD_SECRET="9f3a..."`
+ * would sign the agent's tool key with a different secret from the one the
+ * deployment derives, and every tool call on every phone call would come back
+ * 401 with nothing in the logs but "unauthorized".
+ */
 function env(path: string): Record<string, string> {
-  return Object.fromEntries(
-    readFileSync(path, "utf8")
-      .split("\n")
-      .filter((line) => line.includes("=") && !line.startsWith("#"))
-      .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1).trim()]),
-  );
+  const out: Record<string, string> = {};
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (!match) continue;
+    const [, name, rest] = match as unknown as [string, string, string];
+    const quoted = /^(['"`])([\s\S]*?)\1\s*$/.exec(rest.trim());
+    out[name] = quoted ? (quoted[2] as string) : (rest.split(" #")[0] as string).trim();
+  }
+  return out;
 }
 
 const apply = process.argv.includes("--apply");
@@ -42,11 +56,15 @@ if (!baseUrl?.startsWith("https://")) {
   throw new Error("--base-url must be the deployment's https origin");
 }
 
-const local = env(".env.local");
+// The tool key is derived from the secret, so it has to be the secret the
+// deployment itself holds. Point this at the environment the --base-url serves
+// from, or the agent will be created with a key that deployment refuses.
+const envPath = arg("env") ?? ".env.local";
+const local = env(envPath);
 const key = local.ASSEMBLYAI_API_KEY;
 const secret = local.TWICEHEARD_SECRET;
 if (!key || !secret)
-  throw new Error("ASSEMBLYAI_API_KEY and TWICEHEARD_SECRET must be in .env.local");
+  throw new Error(`ASSEMBLYAI_API_KEY and TWICEHEARD_SECRET must be in ${envPath}`);
 
 const clinic = demoRegistry(local.TWICEHEARD_AGENT_ID).byId(clinicId);
 if (!clinic) throw new Error(`unknown clinic ${clinicId}`);
@@ -99,11 +117,23 @@ const agentId = String(agent.id);
 console.log(`\n${existing ? "updated" : "created"} agent ${agentId}`);
 
 if (number && terminationUri) {
-  await send(`${PHONE}/v1/phone-numbers/import`, {
+  // Importing a number the account already holds answers 500 rather than saying so,
+  // which would leave the number bound to whatever agent it was bound to before.
+  // Re-running this script is how an agent is updated, so it has to survive that:
+  // import, and if the import fails, only carry on once the number is really there.
+  const imported = await send(`${PHONE}/v1/phone-numbers/import`, {
     method: "POST",
     headers: { "Idempotency-Key": `import:${number}` },
     body: JSON.stringify({ phone_number: number, termination_uri: terminationUri }),
+  }).catch(async (error: unknown) => {
+    const held = (await send(`${PHONE}/v1/phone-numbers`, { method: "GET" })) as unknown;
+    const list = Array.isArray(held) ? held : [];
+    if (!list.some((item) => (item as { phone_number?: string }).phone_number === number))
+      throw error;
+    console.log(`${number} is already on the account; rebinding it`);
+    return null;
   });
+  void imported;
   await send(`${PHONE}/v1/phone-numbers/${encodeURIComponent(number)}/agent`, {
     method: "PUT",
     body: JSON.stringify({ agent_id: agentId }),
