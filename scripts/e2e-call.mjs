@@ -62,12 +62,36 @@ const note = (text) => {
   console.log(entry);
 };
 
-function speak(text, index) {
+/**
+ * Every line this caller can say, synthesised before the socket opens.
+ *
+ * `say` and `afconvert` are synchronous and take one to three seconds. Called
+ * mid-call they block the event loop, the pump below then catches up by sending
+ * every missed frame in one tick, and the platform, which ingests audio at
+ * real time, is left with a standing queue. That made the agent look two
+ * seconds slower than it is: measured, 21 bursts and a 2715 ms endpointing
+ * figure against 0 bursts and 926 ms once the clips are ready in advance.
+ * Anything that blocks this loop during a call is measuring the harness.
+ */
+const clips = new Map();
+
+function synthesise(text, index) {
   const aiff = join(OUT, `caller-${index}.aiff`);
   const wav = join(OUT, `caller-${index}.wav`);
   execFileSync("say", ["-v", CALLER_VOICE, "-o", aiff, text]);
   execFileSync("afconvert", ["-f", "WAVE", "-d", `LEI16@${RATE}`, "-c", "1", aiff, wav]);
   return pcmFromWav(readFileSync(wav));
+}
+
+function speak(text) {
+  const clip = clips.get(text);
+  if (clip) return clip;
+  // A line the script did not know it would need. Synthesising it now costs the
+  // measurement, so the run says so rather than quietly reporting a slower agent.
+  note(`WARNING: "${text}" was not pre-synthesised; this turn's timing is not usable`);
+  const made = synthesise(text, clips.size);
+  clips.set(text, made);
+  return made;
 }
 
 function pcmFromWav(buffer) {
@@ -122,6 +146,13 @@ async function ask(path, body) {
   return { status: response.status, body: parsed };
 }
 
+// Every line, ready before the session exists. Synthesis takes about fifteen
+// seconds of blocked event loop; doing it after the session is minted leaves the
+// platform holding an open session with no audio, and the call dies at 1006.
+for (const [, line] of ANSWERS) if (!clips.has(line)) clips.set(line, synthesise(line, clips.size));
+if (!clips.has(FALLBACK)) clips.set(FALLBACK, synthesise(FALLBACK, clips.size));
+note(`${clips.size} caller lines synthesised before the call`);
+
 const session = await ask("/api/voice/session", { clinicId: CLINIC });
 if (session.status !== 200) {
   throw new Error(`session ${session.status}: ${JSON.stringify(session.body)}`);
@@ -144,7 +175,6 @@ let callerBuffer = null;
 let callerCursor = 0;
 let callerEndedAt = null;
 let firstAudioThisReply = true;
-let spokenLines = 0;
 let goodbyeSaid = false;
 let finished = false;
 
@@ -156,9 +186,8 @@ function reply(question) {
 }
 
 function say(text) {
-  callerBuffer = speak(text, spokenLines);
+  callerBuffer = speak(text);
   callerCursor = 0;
-  spokenLines += 1;
   said.push(text);
   note(`caller: ${text}`);
   if (/that's all/i.test(text)) goodbyeSaid = true;
