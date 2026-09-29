@@ -12,11 +12,16 @@ import { expect, test } from "@playwright/test";
  * claims: a call, the conversation appearing, the slip filling in, and the
  * graded chart at the end.
  *
- * Build the caller first:  node scripts/demo-audio.mjs demo/caller.wav
- * Then:                    npm run demo:record
+ * Build the callers first:
+ *   node scripts/demo-audio.mjs demo/caller-clean.wav --voice <voice.mp3> --variant clean
+ *   node scripts/demo-audio.mjs demo/caller-unanswered.wav --voice <voice.mp3> --variant unanswered
+ * Then, one recording per caller:
+ *   DEMO_CALLER=demo/caller-clean.wav npm run demo:record
+ *   DEMO_CALLER=demo/caller-unanswered.wav npm run demo:record
  */
 
-const CALLER = resolve("demo/caller.wav");
+/** Which caller drives the recording; `scripts/demo-audio.mjs --variant` builds them. */
+const CALLER = resolve(process.env.DEMO_CALLER ?? "demo/caller-clean.wav");
 
 test.use({
   video: { mode: "on", size: { width: 1280, height: 900 } },
@@ -36,7 +41,7 @@ test("@live a whole call, recorded, ending in the chart the clinic receives", as
   test.setTimeout(9 * 60_000);
   expect(
     existsSync(CALLER),
-    "build the caller audio first: node scripts/demo-audio.mjs demo/caller.wav",
+    `build the caller audio first: node scripts/demo-audio.mjs ${CALLER}`,
   ).toBe(true);
 
   await page.goto("/call");

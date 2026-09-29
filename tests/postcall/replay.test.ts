@@ -562,4 +562,24 @@ describe("a caller who does not follow the script", () => {
     });
     expect(answer("Hold on a moment.")).toMatchObject({ issue: "caller_did_not_confirm" });
   });
+
+  it("does not read an answer to the next question as an answer to this readback", () => {
+    const replay = replayChart(
+      [
+        caller("I take metformin every day"),
+        save("medications", "metformin", "heard"),
+        agent("I have your medications as metformin. Is that the complete list?"),
+        // The caller says nothing at all here. The agent gives up waiting and asks
+        // the next question.
+        agent("Thank you. Do you have any allergies?"),
+        caller("No allergies."),
+        save("medications", "metformin", "confirmed"),
+      ],
+      context,
+    );
+    // "No allergies" answers the allergies question. Reporting it as the caller saying
+    // no to their medication would put a sentence on a clinic's chart that nobody said.
+    expect(replay.issues).toEqual([{ field: "medications", issue: "no_answer_after_readback" }]);
+    expect(replay.chart.medications.status).toBe("heard");
+  });
 });

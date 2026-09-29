@@ -222,6 +222,11 @@ interface Readback {
    * agree to it: a yes to a later question is an answer to that question.
    */
   answer: { text: string; at: number } | null;
+  /**
+   * The agent asked something else before the caller said anything, so whatever
+   * they say next belongs to that question and not to this readback.
+   */
+  closed: boolean;
 }
 
 interface ReplayState {
@@ -272,7 +277,9 @@ export function replayChart(
  */
 function answerReadbacks(state: ReplayState, text: string, step: number): void {
   for (const entry of state.pending.values()) {
-    if (entry.spokenAt !== null && entry.answer === null) entry.answer = { text, at: step };
+    if (entry.spokenAt !== null && entry.answer === null && !entry.closed) {
+      entry.answer = { text, at: step };
+    }
   }
 }
 
@@ -283,8 +290,17 @@ function markSpoken(
   interrupted: boolean,
 ): void {
   for (const entry of state.pending.values()) {
-    if (!wasSpoken(entry.sentence, agentSaid)) continue;
+    if (!wasSpoken(entry.sentence, agentSaid)) {
+      // The agent moved on while this readback was still waiting. Whatever the caller
+      // says next answers the new question, not this one. Without this, a caller who
+      // said nothing at all and then answered "No allergies" to the next question was
+      // recorded as having said no to their medication, which is a sentence about a
+      // patient that nobody ever said.
+      if (entry.spokenAt !== null && entry.answer === null) entry.closed = true;
+      continue;
+    }
     entry.spokenAt = step;
+    entry.closed = false;
     // Reading the value again puts the question again, so the answer that counts is
     // the one after this reading and not the one after an earlier attempt.
     entry.answer = null;
@@ -335,7 +351,13 @@ function judgeConfirmation(state: ReplayState, field: string, status: string): b
 /** The agent repeating a readback it already said must not erase the fact that it said it. */
 function rememberReadback(state: ReplayState, field: FieldId, sentence: string): void {
   if (state.pending.get(field)?.sentence === sentence) return;
-  state.pending.set(field, { sentence, spokenAt: null, interrupted: false, answer: null });
+  state.pending.set(field, {
+    sentence,
+    spokenAt: null,
+    interrupted: false,
+    answer: null,
+    closed: false,
+  });
 }
 
 function checkConfirmation(field: FieldId, state: ReplayState): Verdict | null {

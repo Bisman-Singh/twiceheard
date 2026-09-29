@@ -9,7 +9,20 @@
 // the caller's lines is given with --voice, it is split on its own pauses and used
 // instead of the system voice. The line order has to match the script below.
 //
-// Usage: node scripts/demo-audio.mjs [outFile] [--voice caller-voice.mp3]
+// Two callers can be built from the same recording, because the demonstration needs
+// both halves of the claim on screen:
+//
+//   --variant clean        every readback answered with a yes, and an appointment booked.
+//                          This is what a good call looks like, and the chart is all green.
+//   --variant unanswered   the caller says nothing at all after the medications readback.
+//                          A dropped line, a distracted patient. Whatever the agent files
+//                          next, nobody confirmed that value, and the chart has to say so.
+//
+// The second is the one that matters. It is deliberately not a caller who mumbles or
+// half-agrees: an example a viewer could argue with is worse than no example, because
+// the whole product rests on the flag being fair.
+//
+// Usage: node scripts/demo-audio.mjs [outFile] [--voice caller-voice.mp3] [--variant clean]
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,6 +31,12 @@ import { join } from "node:path";
 const OUT = process.argv[2] ?? "demo/caller.wav";
 const VOICE = process.env.CALLER_VOICE ?? "Rishi";
 const RATE = 48_000;
+
+const variantAt = process.argv.indexOf("--variant");
+const VARIANT = variantAt === -1 ? "clean" : process.argv[variantAt + 1];
+if (VARIANT !== "clean" && VARIANT !== "unanswered") {
+  throw new Error("--variant must be clean or unanswered");
+}
 
 /** Each line, and the silence after it, in seconds. */
 const SCRIPT = [
@@ -29,12 +48,10 @@ const SCRIPT = [
   ["It is nine eight one two three four five six seven eight.", 15],
   ["Yes, that's right.", 11],
   ["I take Metformin every day.", 14],
-  // Deliberately not a confirmation, and deliberately a reasonable thing for a patient
-  // to say. The clinic should ring back about this line, which is the whole point: the
-  // chart has to show that nobody ever confirmed it. An earlier version of this script
-  // used "That's the only one I take", which reads as agreement to anyone listening and
-  // made the flag look pedantic rather than useful.
-  ["I am not certain of the name, I would have to check the box at home.", 13],
+  // The answer to the medications readback, and the only line the two variants differ on.
+  // In `unanswered` the caller says nothing here at all: the clip is dropped and only the
+  // silence is kept, so nobody can argue about whether that was agreement.
+  ["Yes, that's right.", 13],
   ["No allergies.", 13],
   ["Yes, that's right.", 11],
   ["Tomorrow morning would suit me.", 14],
@@ -111,13 +128,31 @@ const silence = (seconds) => Buffer.alloc(Math.round(seconds * RATE) * 2);
 // The agent greets first, so the caller waits before saying anything.
 const parts = [silence(8)];
 const starts = VOICE_FILE ? lineStarts(VOICE_FILE, SCRIPT.length) : null;
+/** The medications readback is answered by the line at this position in the script. */
+const MEDICATION_ANSWER = 8;
+/**
+ * Where a line takes its audio from, when it is not its own position.
+ *
+ * The recording was made against an earlier script whose medications answer was
+ * "That's the only one I take". That reads as agreement to anyone listening, so the
+ * script now answers with a yes and borrows the yes already in the recording rather
+ * than asking for the voice to be recorded again for one line.
+ */
+const CLIP_FOR = new Map([[MEDICATION_ANSWER, 2]]);
+
 SCRIPT.forEach(([line, gap], index) => {
+  const clip = CLIP_FOR.get(index) ?? index;
   const spoken = starts
-    ? cut(VOICE_FILE, starts[index], starts[index + 1] ?? null, index)
+    ? cut(VOICE_FILE, starts[clip], starts[clip + 1] ?? null, index)
     : speak(line, index);
-  parts.push(spoken, silence(gap));
+  const silent = VARIANT === "unanswered" && index === MEDICATION_ANSWER;
+  // The gap still has to hold the clip's own length, or every later answer slides
+  // forward and lands on the wrong question.
+  parts.push(silent ? silence(spoken.length / (RATE * 2)) : spoken, silence(gap));
 });
 
 const pcm = Buffer.concat(parts);
 writeFileSync(OUT, wavFromPcm(pcm));
-console.log(`${OUT}: ${(pcm.length / (RATE * 2)).toFixed(1)}s, ${SCRIPT.length} answers`);
+console.log(
+  `${OUT}: ${(pcm.length / (RATE * 2)).toFixed(1)}s, ${SCRIPT.length} answers, variant ${VARIANT}`,
+);
