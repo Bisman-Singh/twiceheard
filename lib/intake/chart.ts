@@ -40,7 +40,12 @@ export interface FieldRecord {
 
 export type Chart = Readonly<Record<FieldId, FieldRecord>>;
 
-/** What goes back to the model: `say` is spoken verbatim, `note` steers the next step. */
+/**
+ * What goes back to the model. `say` is the sentence the agent is instructed to
+ * speak exactly; nothing in the platform enforces that, which is why
+ * `lib/postcall/replay.ts` checks after the call that it really was spoken.
+ * `note` steers the next step.
+ */
 export interface ToolReply {
   ok: boolean;
   say?: string;

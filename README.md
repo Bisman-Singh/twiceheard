@@ -47,6 +47,10 @@ Node 24 or newer. The version is pinned in `.nvmrc`.
 
 ```bash
 npm install
+# Two secrets of your own and a platform key. The app refuses to start without them,
+# rather than running on a default nobody meant to ship.
+printf 'ASSEMBLYAI_API_KEY=%s\nTWICEHEARD_SECRET=%s\nTWICEHEARD_WEBHOOK_SECRET=%s\n' \
+  "$ASSEMBLYAI_API_KEY" "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env.local
 npm run dev            # http://localhost:3000
 ```
 
@@ -120,9 +124,11 @@ function length.
 
 ## What is not built yet
 
-- **No text messages are sent.** `lib/notify/sms.ts` defines the messenger interface and the booking
-  message, and `lib/server/deps.ts` wires the recording fake. A booking records the text it would send
-  and reports success. No provider is connected.
+- **Text messages need a provider.** `lib/notify/sms.ts` carries a Twilio adapter over the Messages
+  API, and `lib/server/deps.ts` uses it when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and
+  `TWILIO_NUMBER` are all set. Without them the messenger refuses rather than pretending: the booking
+  still stands and the agent tells the caller the front desk will confirm by phone, because a product
+  that promises a text it cannot send is worse than one that says so.
 - **No admin screen.** The clinic registry serves one fictional demo clinic defined in
   `lib/clinic/config.ts`. The schema and the registry are built for more than one, but there is no way
   to add or edit a clinic without editing that file.

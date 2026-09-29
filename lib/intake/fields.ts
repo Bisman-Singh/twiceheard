@@ -250,7 +250,7 @@ function normaliseDate(text: string, context: FieldContext): Normalised {
   return { ok: true, value: text };
 }
 
-/** Phone numbers are stored in E.164 so the SMS adapter and the EMR agree. */
+/** Phone numbers are stored in E.164, the one form a messaging provider will accept. */
 function normalisePhone(text: string, country: Country): Normalised {
   const digits = text.replace(/\D/g, "");
   const e164 = country === "IN" ? indianNumber(digits) : usNumber(digits);

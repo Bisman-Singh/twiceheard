@@ -5,7 +5,7 @@ import { z } from "zod";
  *
  * Everything the agent says about the clinic comes from here, so the agent
  * never invents a doctor, an opening hour or a phone number. The schema is
- * strict: an admin screen that sends an unknown field is a bug, not a
+ * strict: a clinic definition carrying an unknown field is a bug, not a
  * feature request.
  */
 

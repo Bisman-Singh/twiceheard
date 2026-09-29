@@ -4,7 +4,8 @@ import type { Chart, FieldRecord } from "@/lib/intake/chart";
 /**
  * Green, amber or red for every field, with the reasons a person can read.
  *
- * Two independent signals feed it. The live one is the conversation: did the
+ * Two signals feed it, from the same vendor over the same audio, so they are
+ * not independent. The live one is the conversation: did the
  * caller say yes to the value read back? The second arrives after the call,
  * when the recording is transcribed again on its own and each word carries a
  * confidence: does the patient's side of the recording actually contain the

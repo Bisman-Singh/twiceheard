@@ -9,7 +9,7 @@ const STEPS = [
   },
   {
     title: "The appointment is booked",
-    body: "Real open times are offered, one is booked, and the caller gets a text message confirming it.",
+    body: "Real open times are offered and one is booked, held against the clinic's own diary so the same slot cannot go twice. A confirmation text follows when a messaging provider is configured.",
   },
   {
     title: "The call is heard a second time",

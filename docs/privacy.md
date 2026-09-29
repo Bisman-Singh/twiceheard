@@ -41,8 +41,9 @@ intake id.
 records, webhook delivery ids and session owners live there. Without Redis they live in the server
 process's memory and disappear when it stops.
 
-**No messaging provider.** A booking records the text message it would send and reports success. No
-phone number leaves the app to a messaging provider today.
+**Messaging is optional.** A confirmation text is sent only when a messaging provider is configured,
+and then the caller's number and the booking sentence go to that provider. With none configured no
+phone number leaves the app, and the agent says the front desk will confirm by phone instead.
 
 ## What is kept, and for how long
 
@@ -102,10 +103,12 @@ timeline stay with AssemblyAI, under their retention; a caller who wants those r
 AssemblyAI, and the repository owner would carry that request. The second hearing's transcript is not
 one of them: it is already deleted there as soon as its words have been scored.
 
-**TODO for the repository owner: put a grievance contact here.** The India Digital Personal Data
+**No published grievance contact yet, and that is a gap.** The India Digital Personal Data
 Protection Act requires a named contact who answers questions and complaints about personal data, and
-requires that the contact be published. Replace this paragraph with a name or role and an email
-address before anyone is invited to call a real number.
+requires that the contact be published. This document does not name one, because no clinic is
+operating this line and there is nobody to name. A clinic deploying it has to publish its own data
+protection contact here before a real caller is invited to dial the number, and the deployment is not
+lawful for live patient calls until it does.
 
 ## The India DPDP points
 

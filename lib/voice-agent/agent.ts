@@ -8,7 +8,7 @@ import { httpTools, type HttpTool } from "@/lib/voice-agent/tools";
  *
  * One stored agent per clinic serves both the clinic's phone number and the
  * browser call button, so the two paths can never drift apart. Saving the
- * clinic in the admin screen rebuilds this body and updates the agent; the
+ * Re-running `scripts/setup-agent.ts` rebuilds this body and updates the agent; the
  * change takes effect on the next call.
  */
 

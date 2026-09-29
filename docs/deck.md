@@ -43,15 +43,17 @@ one that was measured, and the last slide says what is not there.
 
 ## What was measured
 
-- `npm run verify` exits 0. 314 tests, at 100% statements, branches, functions and lines over the
+- `npm run verify` exits 0. 444 tests, at 100% statements, branches, functions and lines over the
   application, components, library, proxy and config.
-- 23 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
-  readback rule and the medication lookup. All 23 pass.
-- Three whole calls against the live Voice Agent API. In the third, the chart came out 6 verified, 1
-  to check, 0 missing, with an appointment booked. Measured from the two channels of the call's
-  own recording, the median gap between the caller finishing and the agent speaking was 2.84 s.
-- Two defects found and fixed: a yes that could confirm the next field, and a number written as digits
-  where the agent had words to say.
+- 25 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
+  readback rule and the medication lookup. All 25 pass.
+- Whole calls against the live Voice Agent API, driven through the product's own endpoints. The last
+  one came out 7 verified, 0 to check, 0 missing, with an appointment booked. On that call the
+  median gap between the caller finishing and the agent speaking was 3.37 s, and the product's own
+  tool handlers accounted for 20 ms of it at the median. The rest is the platform's turn.
+- Every rule in the grader earns its place: a yes spends on one readback only, digits and number
+  words compare as numbers, a readback has to carry its own value, and an empty allergy list needs a
+  denial and not just a "no" somewhere in the call.
 
 ## What the front desk actually gets
 
@@ -59,9 +61,6 @@ one that was measured, and the last slide says what is not there.
   reason in words a person reads.
 - One line to ring back about, instead of a recording to listen to and a form to re-key.
 - A call where every critical field is green can be acted on without calling anyone back.
-- Of 234 completed submissions in this hackathon, about 20 have any verification or read-back idea,
-  and none combine a dialable number, read-back verification, a second transcription pass and an
-  honest state for what was left for the desk.
 
 ## Security and privacy, written from the code
 

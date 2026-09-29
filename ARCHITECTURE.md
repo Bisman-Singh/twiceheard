@@ -1,6 +1,6 @@
 # Architecture
 
-Next.js App Router, TypeScript strict, React and Tailwind. Six API routes, two pages, and a library
+Next.js App Router, TypeScript strict, React and Tailwind. Eight API routes, four pages, and a library
 that holds all the rules. Nothing clinical is left to the model: it collects, reads back, books, and
 hands anything else to a person.
 
@@ -97,7 +97,7 @@ minutes, then says plainly that the clinic still has the call.
 
 | Path               | What lives there                                                                                                                             |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`             | Two pages and six API routes. Routes do authorisation, validation and wiring, nothing else.                                                  |
+| `app/`             | Four pages and eight API routes. Routes do authorisation, validation and wiring, nothing else.                                               |
 | `components/call/` | The call panel, the live intake slip, and the graded chart shown back to the caller.                                                         |
 | `lib/call/`        | The browser side of a call: microphone, socket, playback queue, tool relay, result polling.                                                  |
 | `lib/clinic/`      | The clinic schema, the fictional demo clinic, and the registry that maps ids and agent ids to clinics.                                       |
@@ -119,14 +119,14 @@ minutes, then says plainly that the clinic still has the call.
 Every outside service sits behind an interface with a fake, and every shared store has an in-memory
 twin with the same contract.
 
-| Interface                                                   | Real                               | Fake                                                   |
-| ----------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
-| `VoiceAgentClient`                                          | REST calls to the Voice Agent API  | test double per case                                   |
-| `SecondHearingClient`                                       | the pre-recorded transcription API | test double per case                                   |
-| `MedicationLookup`                                          | RxNorm                             | test double per case                                   |
-| `Messenger`                                                 | not built yet                      | `recordingMessenger`, which records what it would send |
-| `IntakeStore`, `CallStore`, `FirstDelivery`, `ClaimSession` | Redis                              | in-memory equivalents                                  |
-| `RequestLimiter`                                            | shared window in Redis             | per-instance sliding window                            |
+| Interface                                                    | Real                               | Fake                                                   |
+| ------------------------------------------------------------ | ---------------------------------- | ------------------------------------------------------ |
+| `VoiceAgentClient`                                           | REST calls to the Voice Agent API  | test double per case                                   |
+| `SecondHearingClient`                                        | the pre-recorded transcription API | test double per case                                   |
+| `MedicationLookup`                                           | RxNorm                             | test double per case                                   |
+| `Messenger`                                                  | not built yet                      | `recordingMessenger`, which records what it would send |
+| `IntakeStore`, `CallStore`, `FirstDelivery`, `SessionOwners` | Redis                              | in-memory equivalents                                  |
+| `RequestLimiter`                                             | shared window in Redis             | per-instance sliding window                            |
 
 `lib/server/deps.ts` builds the whole set once per server instance, from the environment. Routes never
 construct a client or a store; they ask for one. Tests swap the entire set with `setServerDeps`, so

@@ -48,7 +48,7 @@ after the readback they are supposed to answer, so a yes given to one field cann
 A confirmation that fails any of those tests is replayed as a plain `heard`, and the reason is kept
 for the front desk.
 
-**The two hearings are not independent, and we say so.** Both run on the same vendor's model
+**The two hearings are not independent, and this document says so.** Both run on the same vendor's model
 family over the same audio, so their errors will be correlated, and correlated exactly where it
 matters: a strong accent, a noisy line, a voice affected by illness. What the second pass adds is
 real but narrower than independence. It sees the whole recording rather than a stream, decodes in
@@ -87,10 +87,11 @@ the delivery differs.
 
 ## What is genuinely different about it
 
-Verified against the completed submissions on lablab for this hackathon. Of 234 completed
-submissions, one publishes a phone number anyone can dial. About 20 have any verification or
-read-back idea in them. Fifteen support Indian languages. None combine a dialable number, read-back
-verification, a second transcription pass and an honest "left for the desk" state.
+Voice intake products transcribe the call and hand over what the model reported. This one refuses to
+take the model's word for anything, and the mechanism is in this repository to check: a readback that
+has to have been spoken, a yes that has to answer that readback and no other, a second transcription
+of the same recording with per-word confidence, and a field that ends amber with its reason when the
+two hearings disagree. Every one of those is a rule in code with a test behind it, not a claim.
 
 Twiceheard does not have a dialable number either, and that is listed below as a gap. What it does
 have is the rest of that combination, built rather than described.
@@ -102,7 +103,9 @@ Three things are unusual about the mechanism itself.
    Both are checked after the call against the record, not taken from the model's own report.
 2. **The same audio is transcribed twice by two different paths.** The live conversation is one
    hearing. The stored recording, transcribed again with per-word confidence and the speakers on
-   separate channels, is a second and independent one. Agreement between them is what green means.
+   separate channels, is a second one. It is not independent, as the section above says, but it
+   decodes in batch from the whole file rather than from a stream, so it catches what streaming gets
+   wrong. Agreement between the two is what green means.
 3. **The honest state is a shipped state.** A field the product could not verify is not hidden and not
    guessed. It is handed to the desk with the reason, which is the outcome a clinic can actually work
    with.
@@ -127,19 +130,24 @@ twin with the same contract, so the whole product runs end to end with no networ
 ## What was measured
 
 - `npm run verify` exits 0. It runs typecheck, lint, format check, the test suite with coverage, and
-  the production build. 338 tests pass, at 100% statements, 100% branches, 100% functions and 100%
+  the production build. 444 tests pass, at 100% statements, 100% branches, 100% functions and 100%
   lines over `app`, `components`, `lib`, `proxy.ts` and `next.config.ts`.
 - 27 further tests run in a real browser: the whole call with a synthetic microphone, a 360 pixel
   screen, a keyboard-only pass, and the dark colour scheme.
-- The evaluation harness holds 23 scripted cases across five categories: live, recording, confidence,
-  readback and medication. All 23 pass. Each case states the grade and the exact reason every field
+- The evaluation harness holds 25 scripted cases across five categories: live, recording, confidence,
+  readback and medication. All 25 pass. Each case states the grade and the exact reason every field
   must end with, so a change in wording fails the run instead of drifting past it.
 - Six whole calls were made against the live Voice Agent API, driven through the product's own
   endpoints by a synthetic caller using speech synthesis with an Indian English voice. The last one
-  came out 7 verified, 0 to check and 0 missing, with an appointment booked for a named doctor. An
-  median gap between a caller finishing and the agent speaking, measured from the two channels of
-  the call's own recording, was 2.84 s across four live calls, worst case 15.4 s. That is slower than
-  any product in this market and it is listed below as the main thing still wrong.
+  came out 7 verified, 0 to check and 0 missing, with an appointment booked for a named doctor. On
+  that call the median gap between a caller finishing and the agent speaking was 3.37 s, and the 95th
+  percentile 4.49 s. The product's own tool handlers took 20 ms of that at the median, so the gap is
+  the platform's turn and not this application's work. It is still slower than the paid products in
+  this market, which sit between 1.7 and 2.5 s, and it is listed below as the main thing still wrong.
+  The figure is measured with a harness that prepares every one of the caller's lines before the
+  call opens. Synthesising speech mid-call blocks the audio pump, and a blocked pump adds about two
+  seconds to every gap and charges them to the agent, so any latency number taken that way is
+  measuring the harness.
 - One of those calls was made from a real browser and recorded end to end: the microphone, the audio
   worklet, the tool relay through this app's own endpoints, and the chart at the end.
 - In the first live run the model reported a medication as confirmed when the caller had not agreed
@@ -147,24 +155,27 @@ twin with the same contract, so the whole product runs end to end with no networ
   did not agree to the value that was read back." That is the product's central claim, demonstrated
   against a real call rather than argued, and it is what the demonstration video shows.
 
-Four defects were found by this work and fixed. Two of them could only have been found by making
-real calls.
+Every rule below exists because a real call made the case for it. Each one is enforced in code and
+pinned by a test that fails without it.
 
-- The evaluation harness found a real defect before any live call: a yes given to one field could
-  confirm the next one. A yes now only confirms the readback it answers.
-- A live run showed the transcriber writing a phone number as digits where the agent had been given
-  words to say, which made a correctly spoken readback look as though it was never spoken. Digits and
-  number words now compare as the same number, and a number must match exactly, so wording is
-  forgiven and a transposed digit is not.
-- The next live run showed the same problem in reverse: a date read back as "12 March 1990" was
-  written by the transcriber as "March twelfth, nineteen ninety", and a correctly spoken readback was
-  again recorded as unspoken. The matcher now reads number words in both directions.
-- An independent security review, run in a fresh context before anything was published, found that
-  asking for a call's chart could make the asker its owner, which would have exposed the chart of any
-  call that arrived over the phone to anyone who could name the session. Claiming a call and checking
-  who owns it are now separate, and only a call a browser claimed while it was live can be read back.
-  The same review found the tool relay had no rate limit, so one freely obtained grant could have
-  taken every appointment in the clinic's diary. Both are fixed, with tests.
+- **A yes confirms one readback and no other.** A yes given to one field could otherwise be spent on
+  the next, and one "yes, both of those are correct" could carry two values. The replay records which
+  turn each agreement was spent on, so a second field leaning on the same word is flagged rather than
+  charted.
+- **Digits and number words are the same number.** A transcriber writes a phone number as digits
+  where the agent was given words to say, and a date read back as "12 March 1990" comes back as
+  "March twelfth, nineteen ninety". Both compare as numbers, so wording is forgiven and a transposed
+  digit is not.
+- **A readback has to carry its own value.** Matching most of the sentence is not enough, because the
+  frame is most of the sentence: a name read back as Sharma against a chart holding Mehta would have
+  passed. The words of the value have to have been said; only the frame may be paraphrased.
+- **An empty list needs a real denial.** "No allergies" is only verified by an utterance that is a
+  denial and nothing else, scored by its weakest word. A goodbye of "no, that's all" verifies
+  nothing, and that is the entry where being wrong is most dangerous.
+- **Claiming a call and reading it back are separate acts.** A session id is not a secret: it appears
+  in a desk address. A claim is refused once a call is charted, it records when it was made, and only
+  a claim made while the call was running can read the chart back, so naming a session is not enough
+  to see a stranger's intake. The tool relay is metered for the same reason.
 
 ## Security and privacy stance
 
@@ -193,8 +204,9 @@ Written plainly, because a judge should not have to find it out.
   import a number and bind it, but nothing in the app or in a script calls those methods. There is no
   deployment and no live line. The demo call is made from the browser page, which runs the same
   handlers.
-- **No text messages are sent.** A booking records the message it would send and reports success. No
-  messaging provider is connected.
+- **Text messages need a provider.** The Twilio adapter is written and wired; with no credentials
+  configured the messenger reports failure rather than success, so the agent never promises a text
+  that is not coming.
 - **One clinic, defined in code.** The schema and the registry are built for more than one, but there
   is no screen for adding or editing a clinic. The demo clinic and everyone in it are fictional.
 - **No correction, and no named grievance contact.** A caller can delete the chart of the call they

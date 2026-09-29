@@ -38,8 +38,10 @@ import type { ToolName } from "@/lib/voice-agent/tools";
  * What each tool does when the agent calls it.
  *
  * Handlers take plain arguments and return a small JSON object the platform
- * feeds back to the model: `say` is spoken verbatim, `note` steers the next
- * step, and anything else is data for the model to use. They never throw for
+ * feeds back to the model. `say` is the sentence the agent is instructed to say
+ * exactly, which nothing in the platform enforces and `lib/postcall/replay.ts`
+ * checks afterwards; `note` steers the next step; anything else is data for the
+ * model to use. They never throw for
  * a bad request from the model; they explain what to do instead, because a
  * thrown error on a live call is a silence the caller has to sit through.
  */
