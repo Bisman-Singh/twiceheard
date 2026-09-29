@@ -42,14 +42,21 @@ function answer(body: Health, status: number): Response {
 export function GET(): Response {
   try {
     const deps = serverDeps();
+    const shared = Boolean(deps.env.redis);
+    // On one machine the in-memory stores are right. On serverless they are a
+    // broken deployment that still answers: the tool call that saves a field and
+    // the request that reads the chart land on different instances, and the agent
+    // tells the caller mid-call that their intake id is not recognised. Reporting
+    // that as healthy is how nobody finds out until a patient is on the line.
+    const degraded = !shared && process.env.NODE_ENV === "production";
     return answer(
       {
-        status: "ok",
+        status: degraded ? "degraded" : "ok",
         environment: "loaded",
-        stores: deps.env.redis ? "shared" : "in-process",
+        stores: shared ? "shared" : "in-process",
         time: deps.now().toISOString(),
       },
-      200,
+      degraded ? 503 : 200,
     );
   } catch {
     // The reason is deliberately not logged with the error: an environment

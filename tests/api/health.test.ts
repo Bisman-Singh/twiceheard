@@ -41,6 +41,18 @@ describe("GET /api/health", () => {
     expect(Object.keys(body).sort()).toEqual(["environment", "status", "stores", "time"]);
   });
 
+  it("calls itself degraded in production when the stores are only in this instance", async () => {
+    // Serverless with no Redis is a broken deployment that still answers: the tool
+    // call that saves a field and the request that reads the chart land on different
+    // instances. A probe that reports that as healthy is how nobody finds out until
+    // a patient is on the line.
+    vi.stubEnv("NODE_ENV", "production");
+    setServerDeps(testDeps());
+    const response = await GET();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ status: "degraded", stores: "in-process" });
+  });
+
   it("says the stores are shared when Redis is configured, and names nothing about it", async () => {
     const deps = testDeps();
     setServerDeps({ ...deps, env: { ...deps.env, redis: REDIS } });

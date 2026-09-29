@@ -86,8 +86,25 @@ function messenger(env: ServerEnv): Messenger {
   return env.sms ? twilioMessenger(env.sms) : refusingMessenger();
 }
 
+/**
+ * One retry, fifty milliseconds apart.
+ *
+ * The client's own default is six attempts with exponential backoff, about 4.3
+ * seconds of sleeping per command. `save_field` runs two commands, and it is the
+ * one tool the platform holds in silence with an eight second limit, so the
+ * default turns a brief Redis problem into nine seconds of dead air on a live
+ * call and a failed tool anyway. A blip should cost a field, not the call.
+ *
+ * A per-request timeout would be better still and is not available here: this
+ * client takes a single `AbortSignal`, and one signal shared by every command
+ * would abort all of them for good the first time it fired.
+ */
+export const REDIS_RETRY = { retries: 1, backoff: () => 50 } as const;
+
 export function buildDeps(env: ServerEnv): ServerDeps {
-  const redis = env.redis ? (new Redis(env.redis) as unknown as RedisLike & Redis) : null;
+  const redis = env.redis
+    ? (new Redis({ ...env.redis, retry: REDIS_RETRY }) as unknown as RedisLike & Redis)
+    : null;
   return {
     env,
     clinics: demoRegistry(env.agentId),

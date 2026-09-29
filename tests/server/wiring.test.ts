@@ -11,7 +11,7 @@ import {
   postCallDeps,
   processWithRetry,
 } from "@/lib/postcall/run";
-import { buildDeps, serverDeps, setServerDeps } from "@/lib/server/deps";
+import { REDIS_RETRY, buildDeps, serverDeps, setServerDeps } from "@/lib/server/deps";
 import { EnvError, readEnv } from "@/lib/server/env";
 import { testDeps } from "@/tests/api/helpers";
 
@@ -127,6 +127,13 @@ describe("server deps", () => {
       }),
     );
     expect(shared.callStarts).toBeInstanceOf(SharedRateLimiter);
+  });
+
+  it("gives Redis one quick retry rather than the client's six slow ones", () => {
+    // Six attempts with exponential backoff is about 4.3 seconds per command, and
+    // `save_field` runs two inside a tool the platform holds in silence for eight.
+    expect(REDIS_RETRY.retries).toBe(1);
+    expect(REDIS_RETRY.backoff()).toBe(50);
   });
 
   it("sends a booking text only when a provider is configured, and refuses otherwise", async () => {

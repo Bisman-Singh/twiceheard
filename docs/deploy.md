@@ -81,11 +81,20 @@ code to confirm the same call is listed there.
 
 ## Why the region is pinned
 
-`vercel.json` pins the functions to `iad1`. Every tool call on a live phone call is made by the
-voice platform, whose agent and phone APIs are on its US host, and the caller waits in silence while
-that round trip happens. Putting the functions next to the platform keeps that trip short. Create
-the Redis database in the same region for the same reason: a tool handler reads the intake and
-writes it back, so a distant store costs the caller two crossings per saved value.
+`vercel.json` pins the functions to `pdx1`, which is AWS `us-west-2`. Every tool call on a live
+phone call is made by the voice platform, and the caller waits in silence while that round trip
+happens. `agents.us.assemblyai.com`, which serves the stored agents and phone numbers, and
+`api.assemblyai.com`, which does the second hearing, both resolve into `us-west-2`; the global host
+`agents.assemblyai.com`, which browser sessions use, is in `eu-west-1`. The phone path is the one
+with a person waiting on it, so the functions sit next to that. Check it rather than trusting this
+paragraph, because it is the kind of fact that goes stale:
+
+```bash
+dig +short -x "$(dig +short agents.us.assemblyai.com | head -1)"
+```
+
+Create the Redis database in the same region for the same reason: a tool handler reads the intake
+and writes it back, so a distant store costs the caller two crossings per saved value.
 
 The caller's own browser only fetches a session once, at the start, so its distance from the
 functions costs one request, not one per turn.
