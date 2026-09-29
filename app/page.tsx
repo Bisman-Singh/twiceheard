@@ -19,9 +19,9 @@ const STEPS = [
 
 /** Written out in full so the stylesheet contains them; the CSP forbids inline style attributes. */
 const TONES = {
-  green: "bg-[var(--green-bg)] text-[var(--green-text)]",
-  amber: "bg-[var(--amber-bg)] text-[var(--amber-text)]",
-  red: "bg-[var(--red-bg)] text-[var(--red-text)]",
+  green: "text-[var(--green-text)]",
+  amber: "text-[var(--amber-text)]",
+  red: "text-[var(--red-text)]",
 } as const;
 
 const GRADES = [
@@ -63,15 +63,17 @@ export default function Home() {
         <h2 id="how" className="text-2xl font-semibold">
           How a call works
         </h2>
-        <ol className="grid gap-4 sm:grid-cols-2">
+        <ol className="border-t border-[var(--line)]">
           {STEPS.map((step, index) => (
             <li
               key={step.title}
-              className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5"
+              className="grid grid-cols-[2rem_1fr] gap-x-4 border-b border-[var(--line)] py-4"
             >
-              <p className="text-sm font-semibold text-[var(--muted)]">Step {index + 1}</p>
-              <h3 className="mt-1 font-semibold">{step.title}</h3>
-              <p className="mt-2 text-[var(--muted)]">{step.body}</p>
+              <span className="font-mono text-sm text-[var(--muted)]">{index + 1}</span>
+              <div>
+                <h3 className="font-semibold">{step.title}</h3>
+                <p className="mt-1 text-[var(--muted)]">{step.body}</p>
+              </div>
             </li>
           ))}
         </ol>
@@ -81,11 +83,14 @@ export default function Home() {
         <h2 id="grades" className="text-2xl font-semibold">
           What the clinic sees for each field
         </h2>
-        <ul className="grid gap-4 sm:grid-cols-3">
+        <ul className="border-t border-[var(--line)]">
           {GRADES.map((grade) => (
-            <li key={grade.label} className={`rounded-lg p-5 ${TONES[grade.tone]}`}>
-              <h3 className="font-semibold">{grade.label}</h3>
-              <p className="mt-2">{grade.body}</p>
+            <li
+              key={grade.label}
+              className="grid grid-cols-[7rem_1fr] gap-x-4 border-b border-[var(--line)] py-4 max-sm:grid-cols-1"
+            >
+              <h3 className={`font-semibold ${TONES[grade.tone]}`}>{grade.label}</h3>
+              <p className="text-[var(--muted)]">{grade.body}</p>
             </li>
           ))}
         </ul>

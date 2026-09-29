@@ -210,7 +210,7 @@ describe("wasSpoken and isAgreement", () => {
     expect(
       wasSpoken(
         "I have your date of birth as 12 March 1990. Is that right?",
-        "I have your date of birth as 12 March, 1990 — is that right?",
+        "I have your date of birth as 12 March, 1990, is that right?",
       ),
     ).toBe(true);
     expect(
