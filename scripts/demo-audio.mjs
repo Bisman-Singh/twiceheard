@@ -25,11 +25,14 @@ const SCRIPT = [
   ["It is nine eight one two three four five six seven eight.", 15],
   ["Yes, that's right.", 11],
   ["I take Metformin every day.", 14],
-  ["Yes, that's right.", 11],
+  // Deliberately not a yes. The caller answers the readback without agreeing to it, which is
+  // what the product is built to notice, so the recording shows a field that ends amber.
+  ["That's the only one I take.", 12],
   ["No allergies.", 13],
   ["Yes, that's right.", 11],
-  ["Tomorrow morning would suit me.", 15],
-  ["Yes, please book that one.", 13],
+  ["Tomorrow morning would suit me.", 14],
+  ["Doctor Kapoor, please.", 13],
+  ["Yes, please book that one.", 12],
   ["No, that's all. Thank you.", 8],
 ];
 
