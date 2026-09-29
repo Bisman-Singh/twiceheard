@@ -32,7 +32,10 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "npm run start -- --port 3100",
-    url: "http://127.0.0.1:3100/api/health",
+    // The home page, not /api/health. Health answers 503 when a production build
+    // has no shared stores, which is exactly right and exactly wrong to wait on:
+    // this is asking whether the server is up, not whether it is fully configured.
+    url: "http://127.0.0.1:3100/",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
