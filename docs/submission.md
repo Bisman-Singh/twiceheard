@@ -119,21 +119,26 @@ twin with the same contract, so the whole product runs end to end with no networ
 ## What was measured
 
 - `npm run verify` exits 0. It runs typecheck, lint, format check, the test suite with coverage, and
-  the production build. 337 tests pass, at 100% statements, 100% branches, 100% functions and 100%
+  the production build. 338 tests pass, at 100% statements, 100% branches, 100% functions and 100%
   lines over `app`, `components`, `lib`, `proxy.ts` and `next.config.ts`.
+- 27 further tests run in a real browser: the whole call with a synthetic microphone, a 360 pixel
+  screen, a keyboard-only pass, and the dark colour scheme.
 - The evaluation harness holds 23 scripted cases across five categories: live, recording, confidence,
   readback and medication. All 23 pass. Each case states the grade and the exact reason every field
   must end with, so a change in wording fails the run instead of drifting past it.
-- Three whole calls were run against the live Voice Agent API, driven through the product's own
-  endpoints by a synthetic caller using macOS speech synthesis with an Indian English voice. In the
-  third run the chart came out 6 verified, 1 to check and 0 missing, with an appointment booked for a
-  named doctor, and the platform reported a median first-audio latency of 188 ms for that call.
+- Six whole calls were made against the live Voice Agent API, driven through the product's own
+  endpoints by a synthetic caller using speech synthesis with an Indian English voice. The last one
+  came out 7 verified, 0 to check and 0 missing, with an appointment booked for a named doctor. An
+  earlier run reported a median first-audio latency of 188 ms.
+- One of those calls was made from a real browser and recorded end to end: the microphone, the audio
+  worklet, the tool relay through this app's own endpoints, and the chart at the end.
 - In the first live run the model reported a medication as confirmed when the caller had not agreed
   to it. The post-call replay caught it and downgraded the field to amber with the reason "The caller
   did not agree to the value that was read back." That is the product's central claim, demonstrated
-  against a real call rather than argued.
+  against a real call rather than argued, and it is what the demonstration video shows.
 
-Two defects were found by this work and fixed.
+Four defects were found by this work and fixed. Two of them could only have been found by making
+real calls.
 
 - The evaluation harness found a real defect before any live call: a yes given to one field could
   confirm the next one. A yes now only confirms the readback it answers.
@@ -141,6 +146,15 @@ Two defects were found by this work and fixed.
   words to say, which made a correctly spoken readback look as though it was never spoken. Digits and
   number words now compare as the same number, and a number must match exactly, so wording is
   forgiven and a transposed digit is not.
+- The next live run showed the same problem in reverse: a date read back as "12 March 1990" was
+  written by the transcriber as "March twelfth, nineteen ninety", and a correctly spoken readback was
+  again recorded as unspoken. The matcher now reads number words in both directions.
+- An independent security review, run in a fresh context before anything was published, found that
+  asking for a call's chart could make the asker its owner, which would have exposed the chart of any
+  call that arrived over the phone to anyone who could name the session. Claiming a call and checking
+  who owns it are now separate, and only a call a browser claimed while it was live can be read back.
+  The same review found the tool relay had no rate limit, so one freely obtained grant could have
+  taken every appointment in the clinic's diary. Both are fixed, with tests.
 
 ## Security and privacy stance
 
