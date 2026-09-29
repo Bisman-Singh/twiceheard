@@ -101,17 +101,20 @@ describe("call panel", () => {
       h.onField({ field: "full_name", value: "Arjun Mehta", status: "heard" });
       h.onField({ field: "allergies", value: "", status: "unresolved" });
       h.onField({ field: "insurer", value: "Star Health", status: "heard" });
+      h.onField({ field: "date_of_birth", value: "1990-03-12", status: "heard" });
     });
-    expect(slip().getAllByText("read back, waiting")).toHaveLength(2);
+    expect(slip().getAllByText("read back, waiting")).toHaveLength(3);
     expect(slip().getByText("left for the desk")).toBeInTheDocument();
     // A field the clinic added and the panel has no label for keeps its own name.
     expect(slip().getByText("insurer")).toBeInTheDocument();
+    // A date reads as it was spoken, not as it is stored.
+    expect(slip().getByText("12 March 1990")).toBeInTheDocument();
 
     await call.say((h) => {
       h.onField({ field: "full_name", value: "Arjun Mehta", status: "confirmed" });
       h.onBooking("You are booked for Tuesday at 10:30 in the morning.");
     });
-    expect(slip().getAllByText("read back, waiting")).toHaveLength(1);
+    expect(slip().getAllByText("read back, waiting")).toHaveLength(2);
     expect(slip().getByText("confirmed")).toBeInTheDocument();
     expect(slip().getByText(/booked for Tuesday/)).toBeInTheDocument();
   });

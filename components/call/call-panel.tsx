@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { ForgetRecord } from "@/components/call/forget-record";
 import { useCallResult, type ResultState } from "@/components/call/use-call-result";
+import { spokenDate } from "@/lib/intake/readback";
 import { VerifiedChart } from "@/components/call/verified-chart";
 import { claimSession } from "@/lib/call/result-client";
 import {
@@ -226,6 +227,11 @@ function Transcript({
   );
 }
 
+/** A date is shown as the agent said it, so the slip reads like the call sounded. */
+function spoken(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? spokenDate(value) : value;
+}
+
 function IntakeSlip({ fields, booking }: { fields: CallField[]; booking: string }) {
   return (
     <section aria-label="Intake slip">
@@ -242,7 +248,7 @@ function IntakeSlip({ fields, booking }: { fields: CallField[]; booking: string 
             className="flex flex-wrap items-baseline gap-x-2 border-b border-dotted border-[var(--line)] py-1.5 last:border-b-0"
           >
             <dt className="font-semibold">{FIELD_LABELS[field.field] ?? field.field}</dt>
-            <dd className="flex-1">{field.value}</dd>
+            <dd className="flex-1">{spoken(field.value)}</dd>
             <dd className={`text-xs ${STATUS_INK[field.status]}`}>{STATUS_WORDS[field.status]}</dd>
           </div>
         ))}
