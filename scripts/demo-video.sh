@@ -33,16 +33,16 @@ LEAD_IN=11.5
 # Where the call starts inside the recording, and the dead wait to cut out of it.
 CALL_STARTS_AT=3
 CUT_FROM=172
-CUT_TO=191
-TAIL_END=218
+CUT_TO=186
+TAIL_END=222
 
 # Each narration line's position on the finished timeline, in seconds.
 # In milliseconds. ffmpeg accepts a seconds suffix here in principle and ignores it in
 # practice, which put the whole call underneath the opening narration and was only caught
 # by listening. Milliseconds are what this filter actually honours.
 OPENING_MS=800
-AFTER_CALL_MS=178000
-ON_THE_CHART_MS=195000
+AFTER_CALL_MS=179500
+ON_THE_CHART_MS=206000
 BED_AT_MS=$(python3 -c "print(int((${LEAD_IN} + ${CALL_STARTS_AT}) * 1000))")
 
 ffmpeg -hide_banner -loglevel error -y \

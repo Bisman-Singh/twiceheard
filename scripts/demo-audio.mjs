@@ -5,8 +5,12 @@
 // the agent to ask the next question and read a value back. The gaps are set from real
 // runs, where the agent took four to eight seconds between turns.
 //
-// Usage: node scripts/demo-audio.mjs [outFile]
-import { execFileSync } from "node:child_process";
+// A recorded voice makes a better demonstration than a synthesised one, so if a file of
+// the caller's lines is given with --voice, it is split on its own pauses and used
+// instead of the system voice. The line order has to match the script below.
+//
+// Usage: node scripts/demo-audio.mjs [outFile] [--voice caller-voice.mp3]
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,6 +41,31 @@ const SCRIPT = [
 ];
 
 const work = mkdtempSync(join(tmpdir(), "twiceheard-demo-"));
+const voiceAt = process.argv.indexOf("--voice");
+const VOICE_FILE = voiceAt === -1 ? null : process.argv[voiceAt + 1];
+
+/** Where each line starts in a recording of all of them, found by its own pauses. */
+function lineStarts(file, expected) {
+  const output = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-i", file, "-af", "silencedetect=noise=-34dB:d=0.3", "-f", "null", "-"],
+    { encoding: "utf8" },
+  ).stderr;
+  const ends = [...output.matchAll(/silence_end: ([0-9.]+)/g)].map((m) => Number(m[1]));
+  const starts = [0, ...ends];
+  if (starts.length < expected) {
+    throw new Error(`found ${starts.length} lines in ${file}, expected ${expected}`);
+  }
+  return starts.slice(0, expected);
+}
+
+function cut(file, start, end, index) {
+  const wav = join(work, `voice-${index}.wav`);
+  const args = ["-hide_banner", "-loglevel", "error", "-ss", String(start)];
+  if (end !== null) args.push("-to", String(end));
+  execFileSync("ffmpeg", [...args, "-i", file, "-ar", String(RATE), "-ac", "1", wav, "-y"]);
+  return pcmFromWav(readFileSync(wav));
+}
 
 function speak(text, index) {
   const aiff = join(work, `${index}.aiff`);
@@ -78,8 +107,12 @@ const silence = (seconds) => Buffer.alloc(Math.round(seconds * RATE) * 2);
 
 // The agent greets first, so the caller waits before saying anything.
 const parts = [silence(8)];
+const starts = VOICE_FILE ? lineStarts(VOICE_FILE, SCRIPT.length) : null;
 SCRIPT.forEach(([line, gap], index) => {
-  parts.push(speak(line, index), silence(gap));
+  const spoken = starts
+    ? cut(VOICE_FILE, starts[index], starts[index + 1] ?? null, index)
+    : speak(line, index);
+  parts.push(spoken, silence(gap));
 });
 
 const pcm = Buffer.concat(parts);
