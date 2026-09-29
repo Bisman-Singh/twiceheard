@@ -26,17 +26,20 @@ const relay = (body: unknown, headers: Record<string, string> = grantCookie()) =
   relayTool(sameOriginPost("/api/voice/tool", body, headers));
 
 describe("POST /api/voice/session", () => {
-  it("hands a browser the clinic's stored agent when one can reach us", async () => {
+  it("runs a browser call inline even when the clinic has a stored agent", async () => {
+    // The stored agent answers the phone line and lives on the platform's regional
+    // host, which is the only one that can hold a number. This socket opens on the
+    // global host, which answers agent_not_found for it, so the browser gets the
+    // same prompt and tools inline instead.
     const deps = testDeps();
     setServerDeps(deps);
     const response = await begin();
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({
-      token: "browser-token",
-      mode: "agent",
-      agentId: "agent-sunrise",
-    });
+    const body = (await response.json()) as { token: string; mode: string; agentId?: string };
+    expect(body.token).toBe("browser-token");
+    expect(body.mode).toBe("relay");
+    expect(body.agentId).toBeUndefined();
     expect(deps.voice.mintToken).toHaveBeenCalledWith({
       expiresInSeconds: 60,
       maxSessionSeconds: 900,

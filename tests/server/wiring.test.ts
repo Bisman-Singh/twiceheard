@@ -106,10 +106,10 @@ describe("registries", () => {
     expect(registry.forAgent("agent-sunrise")).toBe(DEMO_CLINIC);
     expect(registry.forAgent("agent-other")).toBeNull();
     expect(registry.forAgent(null)).toBeNull();
-    expect(registry.agentFor("sunrise-family")).toBe("agent-sunrise");
-    expect(registry.agentFor("other")).toBeNull();
+    expect(registry.phoneAgentFor("sunrise-family")).toBe("agent-sunrise");
+    expect(registry.phoneAgentFor("other")).toBeNull();
     const noAgent = staticRegistry([{ clinic: DEMO_CLINIC, agentId: null }]);
-    expect(noAgent.agentFor("sunrise-family")).toBeNull();
+    expect(noAgent.phoneAgentFor("sunrise-family")).toBeNull();
     expect(noAgent.forAgent("anything")).toBeNull();
   });
 });

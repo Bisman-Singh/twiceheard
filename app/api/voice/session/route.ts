@@ -42,10 +42,12 @@ export async function POST(request: Request): Promise<Response> {
       expiresInSeconds: TOKEN_SECONDS,
       maxSessionSeconds: MAX_CALL_SECONDS,
     });
-    const agentId = deps.clinics.agentFor(clinic.id);
-    const body = agentId
-      ? { token, mode: "agent" as const, agentId }
-      : { token, mode: "relay" as const, session: inlineSession(clinic) };
+    // A browser call always runs the session inline. The clinic's stored agent
+    // lives on the platform's regional host, because that is the only host that
+    // can hold a phone number, and this socket opens on the global one, which
+    // answers `agent_not_found` for it. The inline session is built from the same
+    // prompt and the same tool specs, so the two paths cannot drift.
+    const body = { token, mode: "relay" as const, session: inlineSession(clinic) };
     const response = Response.json(body, { headers: { "cache-control": "no-store" } });
     response.headers.append(
       "set-cookie",
