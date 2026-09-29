@@ -29,11 +29,12 @@ export function SignInForm() {
         autoCapitalize="characters"
         spellCheck={false}
         inputMode="text"
-        aria-describedby="code-help"
+        aria-describedby={problem ? "code-help code-problem" : "code-help"}
+        aria-invalid={problem ? true : undefined}
         className="mt-2 w-full border-2 border-[var(--text)] bg-transparent px-3 py-2 font-mono tracking-widest"
       />
       {problem && (
-        <p role="alert" className="mt-2 text-sm text-[var(--red-text)]">
+        <p id="code-problem" role="alert" className="mt-2 text-sm text-[var(--red-text)]">
           {problem}
         </p>
       )}

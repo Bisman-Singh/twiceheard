@@ -37,7 +37,8 @@ export default function NotFound() {
         <ul className="max-w-2xl">
           {PLACES.map((place) => (
             <li key={place.href} className="border-b border-[var(--line)] py-4">
-              <Link href={place.href} className="font-semibold">
+              {/* A block with padding, so the target is a bar rather than a line of text. */}
+              <Link href={place.href} className="inline-block py-3 font-semibold">
                 {place.title}
               </Link>
               <p className="mt-1 text-sm text-[var(--muted)]">{place.body}</p>
