@@ -27,11 +27,12 @@ done
 # Where the call starts in the recording, and where the dead wait begins and ends.
 CALL_STARTS_AT=3
 CUT_FROM=172
-CUT_TO=192
-HOLD_LAST_FRAME=14
+CUT_TO=191
+# Where to stop, so the held chart does not outstay the last line of narration.
+TAIL_END=225
 
 # Each narration line's position on the finished timeline, in seconds.
-AT=(1 12 60 166 174 181)
+AT=(1 12 60 166 177 184)
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "$VIDEO" -i "$BED" \
@@ -39,11 +40,10 @@ ffmpeg -hide_banner -loglevel error -y \
   -i "$DIR/line-4.wav" -i "$DIR/line-5.wav" -i "$DIR/line-6.wav" \
   -filter_complex "
     [0:v]trim=0:${CUT_FROM},setpts=PTS-STARTPTS[v1];
-    [0:v]trim=${CUT_TO},setpts=PTS-STARTPTS[v2];
-    [v1][v2]concat=n=2:v=1:a=0[vc];
-    [vc]tpad=stop_mode=clone:stop_duration=${HOLD_LAST_FRAME}[vout];
+    [0:v]trim=${CUT_TO}:${TAIL_END},setpts=PTS-STARTPTS[v2];
+    [v1][v2]concat=n=2:v=1:a=0[vout];
     [1:a]adelay=${CALL_STARTS_AT}000|${CALL_STARTS_AT}000,volume=0.85,
-         volume=volume=0.30:enable='between(t,${AT[0]},11.3)+between(t,11.9,15.3)+between(t,59.8,66.2)'[bed];
+         volume=volume=0.30:enable='between(t,1,11.3)+between(t,11.9,15.3)+between(t,59.8,66.2)'[bed];
     [2:a]adelay=${AT[0]}000|${AT[0]}000[l1];
     [3:a]adelay=${AT[1]}000|${AT[1]}000[l2];
     [4:a]adelay=${AT[2]}000|${AT[2]}000[l3];
