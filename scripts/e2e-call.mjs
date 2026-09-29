@@ -93,6 +93,7 @@ function wavFromPcm(pcm) {
   header.writeUInt32LE(RATE * 2, 28);
   header.writeUInt16LE(2, 32);
   header.writeUInt16LE(16, 34);
+  header.write("data", 36);
   header.writeUInt32LE(pcm.length, 40);
   return Buffer.concat([header, pcm]);
 }

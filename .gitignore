@@ -50,3 +50,6 @@ results.sarif
 /test-results/
 /playwright-report/
 /blob-report/
+
+# generated demo assets, rebuilt with npm run demo:audio
+/demo/

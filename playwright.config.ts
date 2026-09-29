@@ -10,6 +10,8 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  // The demonstration recording opens a real session and spends credit, so it is run on purpose.
+  grepInvert: process.env.DEMO ? undefined : /@live/,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

@@ -21,7 +21,9 @@
     "test:coverage": "vitest run --coverage",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "demo:audio": "node scripts/demo-audio.mjs demo/caller.wav",
+    "demo:record": "DEMO=1 playwright test --grep @live"
   },
   "dependencies": {
     "@upstash/ratelimit": "2.1.0",
