@@ -25,18 +25,17 @@ const relayed: SessionDetail = {
   status: "completed",
   duration_seconds: 63.1,
   artifacts: [
-    { type: "audio", url: "https://recordings.example/a.ogg" },
-    { type: "timeline", url: "https://recordings.example/t.json" },
+    { type: "audio", url: "https://cdn.assemblyai.com/a.ogg" },
+    { type: "timeline", url: "https://cdn.assemblyai.com/t.json" },
   ],
 };
 
 function callDeps(session: SessionDetail = relayed, overrides: Partial<ServerDeps> = {}) {
   const deps = testDeps(overrides);
   vi.mocked(deps.voice.getSession).mockResolvedValue(session);
-  vi.mocked(deps.hearing.transcribe).mockResolvedValue({
-    caller: heard("1"),
-    agent: heard("2"),
-  });
+  for (const client of [deps.hearing, deps.quickHearing]) {
+    vi.mocked(client.transcribe).mockResolvedValue({ caller: heard("1"), agent: heard("2") });
+  }
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json(timeline)),
@@ -124,7 +123,9 @@ describe("POST /api/call/result", () => {
     await askResult();
     await askResult();
     await askResult();
-    expect(deps.hearing.transcribe).toHaveBeenCalledTimes(1);
+    expect(deps.quickHearing.transcribe).toHaveBeenCalledTimes(1);
+    // The caller's own request never uses the long-running client the webhook uses.
+    expect(deps.hearing.transcribe).not.toHaveBeenCalled();
   });
 
   it("says pending while the platform has not attached the recording yet", async () => {

@@ -38,12 +38,14 @@ describe("proxy", () => {
     ).toContain("'unsafe-eval'");
   });
 
-  it("skips API routes and static assets", () => {
-    const pattern = new RegExp(`^${config.matcher[0]?.source ?? ""}$`);
+  it("covers every page, including a prefetch, and skips API routes and static assets", () => {
+    const pattern = new RegExp(`^${config.matcher[0] ?? ""}$`);
     expect(pattern.test("/")).toBe(true);
     expect(pattern.test("/dashboard")).toBe(true);
     expect(pattern.test("/api/tools/sunrise-family/save_field")).toBe(false);
     expect(pattern.test("/_next/static/chunk.js")).toBe(false);
+    // No condition excuses a request from the policy, whatever headers it carries.
+    expect(config.matcher.every((entry) => typeof entry === "string")).toBe(true);
   });
 });
 

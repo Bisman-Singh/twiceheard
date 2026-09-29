@@ -27,8 +27,8 @@ const session: SessionDetail = {
   status: "completed",
   duration_seconds: 63.1,
   artifacts: [
-    { type: "audio", url: "https://recordings.example/a.ogg" },
-    { type: "timeline", url: "https://recordings.example/t.json" },
+    { type: "audio", url: "https://cdn.assemblyai.com/a.ogg" },
+    { type: "timeline", url: "https://cdn.assemblyai.com/t.json" },
   ],
 };
 
@@ -72,7 +72,7 @@ describe("processSession on a real call", () => {
     });
     expect(await d.calls.get("sess_fixture")).toEqual(record);
     expect(d.hearing.transcribe).toHaveBeenCalledWith(
-      "https://recordings.example/a.ogg",
+      "https://cdn.assemblyai.com/a.ogg",
       expect.arrayContaining(["Dr. Neha Kapoor"]),
     );
   });

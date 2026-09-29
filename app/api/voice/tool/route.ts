@@ -31,11 +31,16 @@ export async function POST(request: Request): Promise<Response> {
     const deps = serverDeps();
     const caller = readCaller(request, deps.env.secret, deps.now());
     const clinic = caller ? deps.clinics.byId(caller.clinicId) : null;
-    if (!clinic) throw new HttpError(401, "no_call_in_progress");
+    if (!caller || !clinic) throw new HttpError(401, "no_call_in_progress");
+    // A grant is free to get, so the meter belongs here as well as on starting a call.
+    if (!(await deps.toolCalls.allow(caller.owner))) {
+      throw new HttpError(429, "rate_limited", "Too many requests. Please wait a moment.");
+    }
     const body = await readJson(request, bodySchema, MAX_BODY_BYTES);
     if (!TOOL_NAMES.has(body.tool)) throw new HttpError(404, "unknown_tool");
     const result = await runTool(body.tool as ToolName, body.arguments, {
       clinic,
+      owner: caller.owner,
       store: deps.intakes,
       medications: deps.medications,
       sms: deps.sms,

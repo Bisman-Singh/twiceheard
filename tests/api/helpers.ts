@@ -5,7 +5,7 @@ import { memoryIntakeStore } from "@/lib/intake/store";
 import { recordingMessenger } from "@/lib/notify/sms";
 import { memoryCallStore } from "@/lib/postcall/record";
 import type { ServerDeps } from "@/lib/server/deps";
-import { memoryFirstDelivery, memorySessionOwner } from "@/lib/store/redis";
+import { memoryFirstDelivery, memorySessionOwners } from "@/lib/store/redis";
 
 export const SECRET = "s".repeat(40);
 export const WEBHOOK_SECRET = "w".repeat(40);
@@ -25,7 +25,7 @@ export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
     intakes: memoryIntakeStore(() => NOW.getTime()),
     calls: memoryCallStore(),
     firstDelivery: memoryFirstDelivery(),
-    claimSession: memorySessionOwner(),
+    sessions: memorySessionOwners(),
     medications: { lookup: async (name) => ({ kind: "none", name }) },
     sms: recordingMessenger(),
     voice: {
@@ -37,9 +37,11 @@ export function testDeps(overrides: Partial<ServerDeps> = {}): ServerDeps {
       bindPhoneNumber: vi.fn(),
     },
     hearing: { transcribe: vi.fn(async () => ({ caller: [], agent: [] })) },
+    quickHearing: { transcribe: vi.fn(async () => ({ caller: [], agent: [] })) },
     callStarts: new RateLimiter(5, 600_000, () => NOW.getTime()),
     resultChecks: new RateLimiter(60, 600_000, () => NOW.getTime()),
     deskSignIns: new RateLimiter(5, 600_000, () => NOW.getTime()),
+    toolCalls: new RateLimiter(80, 600_000, () => NOW.getTime()),
     now: () => NOW,
     ...overrides,
   };

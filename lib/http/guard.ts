@@ -42,15 +42,41 @@ export function assertContentLength(request: Request, maxBytes: number): void {
   if (declared > maxBytes) throw new HttpError(413, "payload_too_large");
 }
 
+/**
+ * The body, read no further than the cap allows.
+ *
+ * A declared length is a claim, and a chunked request makes none at all, so the
+ * bytes are counted as they arrive and the read stops the moment the cap is
+ * passed. Without this, a cap could be walked past by simply not declaring one.
+ */
+export async function readCapped(request: Request, maxBytes: number): Promise<string> {
+  assertContentLength(request, maxBytes);
+  const body = request.body;
+  if (!body) return "";
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > maxBytes) throw new HttpError(413, "payload_too_large");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 /** Parse and validate a JSON body. */
 export async function readJson<T>(
   request: Request,
   schema: ZodType<T>,
   maxBytes: number,
 ): Promise<T> {
-  assertContentLength(request, maxBytes);
-  const raw = await request.text();
-  if (raw.length > maxBytes) throw new HttpError(413, "payload_too_large");
+  const raw = await readCapped(request, maxBytes);
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -80,7 +106,11 @@ export function jsonError(error: unknown): Response {
   if (error instanceof HttpError) {
     return Response.json({ error: error.code, message: error.message }, { status: error.status });
   }
-  console.error("unhandled api error", error);
+  // The kind only. A store or schema error can carry the command it failed on, and that
+  // command holds the caller's chart.
+  console.error("unhandled api error", {
+    kind: error instanceof Error ? error.name : "unknown",
+  });
   return Response.json(
     { error: "internal_error", message: "Something went wrong." },
     { status: 500 },

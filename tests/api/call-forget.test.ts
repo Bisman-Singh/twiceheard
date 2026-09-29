@@ -103,8 +103,9 @@ describe("POST /api/call/forget", () => {
     const again = await askForget();
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual({ status: "deleted" });
-    // A call that was never recorded in the first place answers the same way.
-    expect((await askForget({ sessionId: "sess_never_happened" })).status).toBe(200);
+    // A call this browser never claimed is refused, whether or not a record exists,
+    // because asking about a call must never be a way of taking it.
+    expect((await askForget({ sessionId: "sess_never_happened" })).status).toBe(403);
     expect(await deps.calls.get(SESSION)).toBeNull();
     expect(warn).toHaveBeenCalledTimes(1);
   });

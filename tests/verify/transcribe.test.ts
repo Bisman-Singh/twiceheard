@@ -37,7 +37,7 @@ describe("createSecondHearingClient", () => {
       [200, { id: "t1", status: "completed", utterances: fixture.utterances }],
     ]);
     const heard = await createSecondHearingClient(KEY, impl, fast).transcribe(
-      "https://recordings.example/a.ogg",
+      "https://cdn.assemblyai.com/a.ogg",
       ["Arjun Mehta", ...Array.from({ length: 150 }, (_, i) => `term ${i}`)],
     );
     expect(heard.caller).toHaveLength(5);
@@ -45,7 +45,7 @@ describe("createSecondHearingClient", () => {
     const submitted = JSON.parse(String(calls[0]?.init.body));
     expect(calls[0]?.url).toBe(`${TRANSCRIPT_BASE_URL}/transcript`);
     expect(submitted).toMatchObject({
-      audio_url: "https://recordings.example/a.ogg",
+      audio_url: "https://cdn.assemblyai.com/a.ogg",
       speech_models: ["universal-3-5-pro", "universal-2"],
       multichannel: true,
     });

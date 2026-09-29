@@ -148,6 +148,42 @@ describe("POST /api/voice/tool", () => {
     ).toBe(413);
   });
 
+  it("stops one grant from driving the clinic's whole diary", async () => {
+    setServerDeps(testDeps({ toolCalls: new RateLimiter(2, 600_000, () => NOW.getTime()) }));
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect((await relay({ tool: "start_intake" })).status).toBe(200);
+    expect((await relay({ tool: "start_intake" })).status).toBe(200);
+    const limited = await relay({ tool: "start_intake" });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({ error: "rate_limited" });
+  });
+
+  it("will not let one browser drive an intake another browser started", async () => {
+    const deps = testDeps();
+    setServerDeps(deps);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { intake_id: intakeId } = (await (await relay({ tool: "start_intake" })).json()) as {
+      intake_id: string;
+    };
+    const stranger = {
+      cookie: `${CALL_GRANT_COOKIE}=${issueCallGrant("sunrise-family", SECRET, new Date(NOW.getTime() + 1000))}`,
+    };
+    const stolen = await relay(
+      {
+        tool: "save_field",
+        arguments: {
+          intake_id: intakeId,
+          field: "full_name",
+          value: "Someone Else",
+          status: "heard",
+        },
+      },
+      stranger,
+    );
+    expect(await stolen.json()).toMatchObject({ ok: false });
+    expect((await deps.intakes.get(intakeId))?.chart.full_name.value).toBeNull();
+  });
+
   it("finds the grant among other cookies", async () => {
     setServerDeps(testDeps());
     vi.spyOn(console, "warn").mockImplementation(() => undefined);

@@ -50,7 +50,7 @@ describe("POST /api/webhooks/assemblyai", () => {
       id: "sess_fixture",
       agent_id: "agent-sunrise",
       status: "completed",
-      artifacts: [{ type: "timeline", url: "https://recordings.example/t.json" }],
+      artifacts: [{ type: "timeline", url: "https://cdn.assemblyai.com/t.json" }],
     };
     const deps = testDeps();
     vi.mocked(deps.voice.getSession).mockResolvedValue(session);

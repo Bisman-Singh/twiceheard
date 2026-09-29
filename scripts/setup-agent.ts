@@ -36,7 +36,7 @@ const baseUrl = arg("base-url");
 const clinicId = arg("clinic") ?? "sunrise-family";
 const number = arg("number");
 const terminationUri = arg("termination-uri");
-const out = arg("out") ?? "/tmp/twiceheard-agent.json";
+const out = arg("out") ?? "demo/agent-body.json";
 
 if (!baseUrl?.startsWith("https://")) {
   throw new Error("--base-url must be the deployment's https origin");
@@ -52,7 +52,9 @@ const clinic = demoRegistry(local.TWICEHEARD_AGENT_ID).byId(clinicId);
 if (!clinic) throw new Error(`unknown clinic ${clinicId}`);
 
 const body = agentBody(clinic, { baseUrl, toolKey: toolKeyFor(clinicId, secret) });
-writeFileSync(out, JSON.stringify(body, null, 2));
+// The body carries the clinic's tool key, which is the whole credential for the tool
+// endpoints, so it is written where only this user can read it.
+writeFileSync(out, JSON.stringify(body, null, 2), { mode: 0o600 });
 
 const toolUrls = body.tools.map((tool) => tool.http?.url).filter(Boolean);
 console.log(`clinic:        ${clinic.id} (${clinic.name})`);

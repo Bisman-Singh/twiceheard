@@ -43,13 +43,9 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-  ],
+  // Every document gets the policy, including a prefetch. Excusing prefetches, which the
+  // framework's own example does for caching, would hand out the page with no policy to
+  // anyone who sets one header. Pages are rendered per request anyway, so a fresh nonce
+  // costs nothing.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };

@@ -12,7 +12,10 @@ import { sameSecret } from "@/lib/security/keys";
  * calls; there is no client-side check to get around.
  */
 
-export const DESK_COOKIE = "twiceheard_desk";
+// See the call grant: the prefix is refused without Secure and a root path, which is
+// exactly what stops a sibling subdomain shadowing the session.
+export const DESK_COOKIE =
+  process.env.NODE_ENV === "production" ? "__Host-twiceheard_desk" : "twiceheard_desk";
 /** A shift, near enough. After it, the desk signs in again. */
 export const DESK_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 /** Letters and digits that cannot be misread when a code is read out loud. */

@@ -11,7 +11,10 @@ import { sameSecret } from "@/lib/security/keys";
  * every relayed tool call alongside the same-origin check.
  */
 
-export const CALL_GRANT_COOKIE = "twiceheard_call";
+// The __Host- prefix makes the browser refuse this cookie unless it is Secure, path /, and
+// has no Domain, so a sibling subdomain cannot plant one that shadows it.
+export const CALL_GRANT_COOKIE =
+  process.env.NODE_ENV === "production" ? "__Host-twiceheard_call" : "twiceheard_call";
 /** A browser intake runs well inside this; after it, the caller starts again. */
 export const CALL_GRANT_TTL_MS = 20 * 60 * 1000;
 

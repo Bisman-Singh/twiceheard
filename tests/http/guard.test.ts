@@ -6,6 +6,7 @@ import {
   assertSameOrigin,
   clientAddress,
   jsonError,
+  readCapped,
   readJson,
 } from "@/lib/http/guard";
 
@@ -96,6 +97,54 @@ describe("jsonError", () => {
       message: "Something went wrong.",
     });
     expect(spy).toHaveBeenCalled();
+    // Only the kind is logged. An error from a store can carry the command it failed on,
+    // and that command holds the caller's chart.
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("secret detail");
+    expect(JSON.stringify(spy.mock.calls)).toContain("Error");
+
+    const thrownString = jsonError("not an error at all");
+    expect(thrownString.status).toBe(500);
+    expect(JSON.stringify(spy.mock.calls)).toContain("unknown");
     spy.mockRestore();
+  });
+});
+
+describe("readCapped", () => {
+  it("counts the bytes it reads, so a body with no declared length cannot walk past the cap", async () => {
+    const big = "x".repeat(2000);
+    const chunked = new Request("https://app.example/api/x", {
+      method: "POST",
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(big));
+          controller.close();
+        },
+      }),
+      // A stream carries no content-length, which is exactly the case the cap has to survive.
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    await expect(readCapped(chunked, 100)).rejects.toMatchObject({ code: "payload_too_large" });
+  });
+
+  it("reads a small body whole, and treats a request with no body as empty", async () => {
+    const small = new Request("https://app.example/api/x", { method: "POST", body: "hello" });
+    expect(await readCapped(small, 100)).toBe("hello");
+    expect(await readCapped(new Request("https://app.example/api/x"), 100)).toBe("");
+  });
+
+  it("still refuses an oversized body when the stream refuses to be cancelled", async () => {
+    const body = new ReadableStream({
+      start(controller) {
+        // Left open, so the cap is hit while the stream is still live and cancel really runs.
+        controller.enqueue(new TextEncoder().encode("x".repeat(2000)));
+      },
+      cancel: () => Promise.reject(new Error("cannot cancel")),
+    });
+    const request = new Request("https://app.example/api/x", {
+      method: "POST",
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    await expect(readCapped(request, 100)).rejects.toMatchObject({ code: "payload_too_large" });
   });
 });

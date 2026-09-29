@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
       throw new HttpError(401, "no_call_in_progress");
     }
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
-    if (!(await deps.claimSession(sessionId, caller.owner))) {
+    if (!(await deps.sessions.claim(sessionId, caller.owner))) {
       throw new HttpError(409, "session_claimed");
     }
     return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });

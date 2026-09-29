@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   DESK_COOKIE,
   DESK_SESSION_TTL_MS,
@@ -61,7 +61,13 @@ describe("desk sessions", () => {
     ).toBeNull();
   });
 
-  it("keeps the cookie name in one place", () => {
+  it("keeps the cookie name in one place, and locks it to this host in production", async () => {
     expect(DESK_COOKIE).toBe("twiceheard_desk");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const fresh = await import("@/lib/security/desk-session");
+    expect(fresh.DESK_COOKIE).toBe("__Host-twiceheard_desk");
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });

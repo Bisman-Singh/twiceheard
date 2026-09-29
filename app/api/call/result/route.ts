@@ -36,7 +36,8 @@ export async function POST(request: Request): Promise<Response> {
     }
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
     // Ownership, not a guessable id, is what makes this call's chart readable.
-    if (!(await deps.claimSession(sessionId, caller.owner))) throw new HttpError(403, "not_yours");
+    if (!(await deps.sessions.isOwner(sessionId, caller.owner)))
+      throw new HttpError(403, "not_yours");
 
     const saved = await deps.calls.get(sessionId);
     if (saved) return ready(saved.clinicId === clinic.id ? saved : null);
@@ -45,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     const post = postCallDeps(deps);
     const record = await processSession(sessionId, {
       ...post,
+      hearing: deps.quickHearing,
       clinicForAgent: (agentId) => post.clinicForAgent(agentId) ?? clinic,
     }).catch((error: unknown) => {
       // Not ready, and a session the platform has not published yet, are both "ask again".

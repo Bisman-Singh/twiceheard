@@ -200,26 +200,34 @@ describe("postCallDeps and fetchArtifact", () => {
     const wired = postCallDeps(shared, fetchImpl);
     expect((await wired.getSession("s")).id).toBe("s");
     expect(wired.clinicForAgent("agent-sunrise")).toBe(DEMO_CLINIC);
-    expect(await wired.fetchJson("https://recordings.example/t.json")).toEqual({ ok: 1 });
+    expect(await wired.fetchJson("https://cdn.assemblyai.com/t.json")).toEqual({ ok: 1 });
     expect(wired.calls).toBe(shared.calls);
     expect(wired.now()).toEqual(shared.now());
 
     const failing = vi.fn(async () => new Response("", { status: 403 })) as unknown as typeof fetch;
-    await expect(fetchArtifact("https://x.example", failing)).rejects.toMatchObject({
-      code: "artifact_unavailable",
-    });
+    await expect(fetchArtifact("https://cdn.assemblyai.com/a.json", failing)).rejects.toMatchObject(
+      {
+        code: "artifact_unavailable",
+      },
+    );
     const huge = vi.fn(
       async () => new Response("x".repeat(MAX_ARTIFACT_BYTES + 1)),
     ) as unknown as typeof fetch;
-    await expect(fetchArtifact("https://x.example", huge)).rejects.toMatchObject({
+    await expect(fetchArtifact("https://cdn.assemblyai.com/a.json", huge)).rejects.toMatchObject({
       code: "artifact_too_large",
     });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("[]")),
     );
-    expect(await postCallDeps(shared).fetchJson("https://x.example")).toEqual([]);
-    expect(await fetchArtifact("https://x.example")).toEqual([]);
+    expect(await postCallDeps(shared).fetchJson("https://cdn.assemblyai.com/a.json")).toEqual([]);
+    expect(await fetchArtifact("https://cdn.assemblyai.com/a.json")).toEqual([]);
+    // A link the platform did not issue is not followed, whatever it points at.
+    for (const elsewhere of ["https://evil.example/a.json", "http://cdn.assemblyai.com/a.json"]) {
+      await expect(fetchArtifact(elsewhere)).rejects.toMatchObject({
+        code: "artifact_unavailable",
+      });
+    }
     vi.unstubAllGlobals();
   });
 });

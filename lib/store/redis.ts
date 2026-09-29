@@ -131,27 +131,46 @@ export function memoryFirstDelivery(): FirstDelivery {
 /**
  * Binds a platform session to the browser that started it.
  *
- * A session id is the only handle a caller has on their own call, so it is
- * claimed the moment the call goes live and every later request for that
- * call's chart must present the same claim. First claim wins, atomically, so
- * a second browser cannot take a call that is already someone's.
+ * A session id is the only handle a caller has on their own call, and it is
+ * not a secret: it appears in a desk address and in a log line. So claiming
+ * and checking are deliberately separate. `claim` happens once, while the call
+ * is live, and first claim wins atomically. `isOwner` only reads, so asking
+ * for a chart can never make the asker its owner, and a call nobody claimed,
+ * which is every call that came in over the phone, has no owner at all and is
+ * not readable through the caller's endpoints.
  */
-export type ClaimSession = (sessionId: string, owner: string) => Promise<boolean>;
+export interface SessionOwners {
+  claim(sessionId: string, owner: string): Promise<boolean>;
+  isOwner(sessionId: string, owner: string): Promise<boolean>;
+}
 
-export function redisSessionOwner(redis: RedisLike): ClaimSession {
-  return async (sessionId, owner) => {
-    const key = keys.owner(sessionId);
-    const claimed = await redis.set(key, owner, { nx: true, px: OWNER_TTL_MS });
-    return claimed !== null || (await redis.get<string>(key)) === owner;
+export function redisSessionOwners(redis: RedisLike): SessionOwners {
+  const read = async (sessionId: string) => redis.get<string>(keys.owner(sessionId));
+  return {
+    async claim(sessionId, owner) {
+      const claimed = await redis.set(keys.owner(sessionId), owner, {
+        nx: true,
+        px: OWNER_TTL_MS,
+      });
+      return claimed !== null || (await read(sessionId)) === owner;
+    },
+    async isOwner(sessionId, owner) {
+      return (await read(sessionId)) === owner;
+    },
   };
 }
 
-export function memorySessionOwner(): ClaimSession {
+export function memorySessionOwners(): SessionOwners {
   const owners = new Map<string, string>();
-  return async (sessionId, owner) => {
-    const held = owners.get(sessionId);
-    if (held !== undefined) return held === owner;
-    owners.set(sessionId, owner);
-    return true;
+  return {
+    async claim(sessionId, owner) {
+      const held = owners.get(sessionId);
+      if (held !== undefined) return held === owner;
+      owners.set(sessionId, owner);
+      return true;
+    },
+    async isOwner(sessionId, owner) {
+      return owners.get(sessionId) === owner;
+    },
   };
 }

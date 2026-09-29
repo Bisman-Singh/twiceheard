@@ -26,6 +26,12 @@ export interface Escalation {
 export interface Intake {
   id: string;
   clinicId: string;
+  /**
+   * The browser this intake belongs to, when it was started from one. A call
+   * that came in over the phone has none, because the platform calls the tools
+   * itself and no browser is in the loop.
+   */
+  owner?: string;
   startedAt: number;
   finishedAt: number | null;
   chart: Chart;
@@ -62,10 +68,11 @@ export function canonicalIntakeId(raw: string): string | null {
   return pattern.test(id) ? id : null;
 }
 
-export function newIntake(id: string, clinicId: string, now: Date): Intake {
+export function newIntake(id: string, clinicId: string, now: Date, owner?: string): Intake {
   return {
     id,
     clinicId,
+    ...(owner === undefined ? {} : { owner }),
     startedAt: now.getTime(),
     finishedAt: null,
     chart: emptyChart(),

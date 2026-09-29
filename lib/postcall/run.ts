@@ -53,10 +53,17 @@ export function postCallDeps(deps: ServerDeps, fetchImpl: typeof fetch = fetch):
 /** Timelines are small; a capped, time-limited fetch keeps a bad link from holding the function. */
 export const MAX_ARTIFACT_BYTES = 4 * 1024 * 1024;
 
+/** The platform's own hosts. A link that points anywhere else is not followed. */
+const ARTIFACT_HOSTS = /(^|\.)assemblyai\.com$/;
+
 export async function fetchArtifact(
   url: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<unknown> {
+  const target = new URL(url);
+  if (target.protocol !== "https:" || !ARTIFACT_HOSTS.test(target.hostname)) {
+    throw new HttpError(502, "artifact_unavailable");
+  }
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(15_000) });
   if (!response.ok) throw new HttpError(502, "artifact_unavailable");
   const text = await response.text();

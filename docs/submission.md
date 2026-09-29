@@ -119,7 +119,7 @@ twin with the same contract, so the whole product runs end to end with no networ
 ## What was measured
 
 - `npm run verify` exits 0. It runs typecheck, lint, format check, the test suite with coverage, and
-  the production build. 314 tests pass, at 100% statements, 100% branches, 100% functions and 100%
+  the production build. 337 tests pass, at 100% statements, 100% branches, 100% functions and 100%
   lines over `app`, `components`, `lib`, `proxy.ts` and `next.config.ts`.
 - The evaluation harness holds 23 scripted cases across five categories: live, recording, confidence,
   readback and medication. All 23 pass. Each case states the grade and the exact reason every field
@@ -173,8 +173,9 @@ Written plainly, because a judge should not have to find it out.
   messaging provider is connected.
 - **One clinic, defined in code.** The schema and the registry are built for more than one, but there
   is no screen for adding or editing a clinic. The demo clinic and everyone in it are fictional.
-- **No deletion endpoint.** A caller cannot ask the app to delete their record. The privacy page also
-  still needs a named grievance contact before anyone is invited to call a real number.
+- **No correction, and no named grievance contact.** A caller can delete the chart of the call they
+  just made, but cannot change a value afterwards, and the privacy page still needs a named contact
+  before anyone is invited to call a real number.
 - **No age check.** India's DPDP Act requires verifiable parental consent for anyone under 18.
   Twiceheard does not check this, and a real deployment would have to solve it before taking calls.
 - **Known limits are written down rather than hidden.** The shared rate limiter fails open, because a

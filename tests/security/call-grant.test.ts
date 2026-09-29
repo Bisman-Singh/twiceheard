@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   CALL_GRANT_COOKIE,
   CALL_GRANT_TTL_MS,
@@ -36,7 +36,15 @@ describe("call grants", () => {
     ).toBeNull();
   });
 
-  it("keeps the cookie name in one place", () => {
+  it("keeps the cookie name in one place, and locks it to this host in production", async () => {
     expect(CALL_GRANT_COOKIE).toBe("twiceheard_call");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const fresh = await import("@/lib/security/call-grant");
+    // The prefix is refused by a browser unless the cookie is Secure with a root path and
+    // no Domain, which is what stops a sibling subdomain planting one that shadows it.
+    expect(fresh.CALL_GRANT_COOKIE).toBe("__Host-twiceheard_call");
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });

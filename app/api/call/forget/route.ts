@@ -33,7 +33,8 @@ export async function POST(request: Request): Promise<Response> {
     if (!caller || !clinic) throw new HttpError(401, "no_call_in_progress");
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
     // Ownership, not a guessable id, is what makes this call's record erasable.
-    if (!(await deps.claimSession(sessionId, caller.owner))) throw new HttpError(403, "not_yours");
+    if (!(await deps.sessions.isOwner(sessionId, caller.owner)))
+      throw new HttpError(403, "not_yours");
 
     if (await deps.calls.remove(clinic.id, sessionId)) {
       // The clinic and the fact of it. What was erased is not written down again here.

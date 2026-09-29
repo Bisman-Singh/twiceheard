@@ -9,7 +9,7 @@ Do not open a public issue, a pull request or a discussion for a vulnerability. 
 Include what you did, what happened, and what you expected. A minimal reproduction helps more than a
 scanner report.
 
-Twiceheard is a demonstration. It is not deployed, it holds no production data, and callers are told
+Twiceheard is a demonstration. It holds no production data, and callers are told
 not to give real medical details. Reports are still welcome.
 
 ## What the code enforces
@@ -18,16 +18,26 @@ Everything below is in the repository and covered by tests in `tests/`.
 
 ### Every endpoint decides for itself who may call it
 
-There are six routes. None of them trusts the client to say who it is.
+None of these trusts the client to say who it is.
 
-| Route                               | What authorises the request                                                         |
-| ----------------------------------- | ----------------------------------------------------------------------------------- |
-| `POST /api/voice/session`           | Same-origin check, then a per-address rate limit.                                   |
-| `POST /api/voice/tool`              | Same-origin check, then the signed call grant cookie.                               |
-| `POST /api/tools/{clinicId}/{tool}` | The clinic's derived tool key, compared in constant time.                           |
-| `POST /api/call/claim`              | Same-origin check, then the grant cookie.                                           |
-| `POST /api/call/result`             | Same-origin check, the grant cookie, a per-owner rate limit, and session ownership. |
-| `POST /api/webhooks/assemblyai`     | An HMAC signature over the exact raw body.                                          |
+| Route                               | What authorises the request                                                                          |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `POST /api/voice/session`           | Same-origin check, then a per-address rate limit.                                                    |
+| `POST /api/voice/tool`              | Same-origin check, the signed call grant cookie, and a per-grant rate limit.                         |
+| `POST /api/tools/{clinicId}/{tool}` | The clinic's derived tool key, compared in constant time.                                            |
+| `POST /api/call/claim`              | Same-origin check, then the grant cookie. This is the only route that may take ownership.            |
+| `POST /api/call/result`             | Same-origin check, the grant cookie, a per-owner rate limit, and an ownership check that only reads. |
+| `POST /api/call/forget`             | Same as the result route, and the store compares the clinic on the record before deleting.           |
+| `POST /api/webhooks/assemblyai`     | An HMAC signature over the exact raw body.                                                           |
+| `GET /api/health`                   | None. It returns shape only: whether the environment parsed and whether the stores are shared.       |
+
+The desk is not an API route but it is an authenticated surface, and the highest-value read in the
+app, because it lists every finished call for a clinic. `/desk` and `/desk/calls/{sessionId}` read a
+signed session cookie on the server (`lib/desk/session.ts`). A page never takes a clinic from the URL
+or from anything a browser can set, and a record whose clinic differs from the signed-in one is
+`notFound()`, which is also what a signed-out visitor gets, so the two cannot be told apart from
+outside. Signing in exchanges a per-clinic code, derived from the server secret, for that cookie, and
+the attempt is rate limited by address.
 
 The two tool routes run the same handlers with the same clinic-scoped dependencies. The route decides
 who is asking; `lib/tools/handlers.ts` decides what happens.
@@ -85,11 +95,16 @@ A platform session id is the only handle a browser has on its own call, and it i
   the cookie jar.
 - The claim is a `SET NX`, which Redis runs atomically, and the in-memory equivalent behaves the same
   way. First claim wins. A second browser gets 409.
-- `POST /api/call/result` claims again with the same owner. A mismatch is 403 `not_yours`.
+- **Claiming and checking are separate.** Reading a chart and deleting one both use a check that only
+  reads the owner, so asking about a call can never make the asker its owner. Only `/api/call/claim`
+  may take ownership, and only while a call is live.
+- A call that no browser claimed has no owner, and a call that arrived over the phone never has one.
+  Those records are not readable or deletable through the caller's endpoints at all; they belong to
+  the clinic and are read at the desk.
 - Even with a matching owner, a saved record whose `clinicId` differs from the grant's clinic is not
   returned.
-- The owner record expires after one hour, which is long enough for a caller to read their own chart
-  and no longer.
+- The owner record expires after one hour. After that the record is no longer reachable through the
+  caller's endpoints by anyone, which is the safe direction to fail in.
 
 ### Rate limits
 
@@ -101,6 +116,11 @@ means the same thing from every instance.
   public page is otherwise an open tap. The limit is checked before the body is parsed, so an invalid
   request still counts.
 - Asking for a result: 60 per owner per 10 minutes. The page polls while its chart is being worked out.
+- Relaying a tool call: 80 per grant per 10 minutes. A grant is free to obtain, so the meter belongs on
+  using a call as well as on starting one. Without it, one grant could drive the clinic's whole
+  appointment diary. An intake also records the browser that started it, so one browser cannot drive
+  another's intake even within the limit.
+- Signing in at the desk: 5 per client address per 10 minutes.
 
 The in-memory limiter tracks at most 10,000 addresses. A flood of fresh addresses evicts the oldest
 rather than growing memory.
@@ -203,6 +223,11 @@ These are design decisions, written down rather than hidden.
   serverless, and `lib/server/env.ts` is where a deployment says which it has.
 - The client address falls back to the first `X-Forwarded-For` entry when `X-Real-IP` is absent. On a
   host that does not set `X-Real-IP` from the connection, a client can forge that fallback.
-- There is no staff view and no login, so there is no role model to attack yet. A caller's own chart
-  is the only authenticated read in the app.
-- Nothing is deployed, so none of this has been exercised against the public internet.
+- The desk signs in with one code per clinic, not per person. There are no accounts, no roles and no
+  record of who read what. A clinic that wanted an audit trail would need all three.
+- A body's size is enforced by counting the bytes as they are read, not by trusting the declared
+  length, but the bytes up to the cap are still buffered in memory before the cap trips.
+- The second hearing on the caller's own path is bounded to fit inside that route's time budget. A
+  hearing that takes longer is abandoned, its transcript deleted, and the page asks again, which can
+  mean a recording is submitted for transcription more than once.
+- Artifact links are followed only over https and only to the platform's own hosts.

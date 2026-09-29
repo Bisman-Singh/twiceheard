@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { HttpError, assertContentLength, jsonError } from "@/lib/http/guard";
+import { HttpError, jsonError, readCapped } from "@/lib/http/guard";
 import { postCallDeps, processWithRetry } from "@/lib/postcall/run";
 import { validWebhookSignature } from "@/lib/security/keys";
 import { serverDeps } from "@/lib/server/deps";
@@ -28,9 +28,7 @@ const deliverySchema = z.object({
  */
 export async function POST(request: Request): Promise<Response> {
   try {
-    assertContentLength(request, MAX_BODY_BYTES);
-    const raw = await request.text();
-    if (raw.length > MAX_BODY_BYTES) throw new HttpError(413, "payload_too_large");
+    const raw = await readCapped(request, MAX_BODY_BYTES);
     const deps = serverDeps();
     if (
       !validWebhookSignature(raw, request.headers.get("x-aai-signature"), deps.env.webhookSecret)

@@ -7,6 +7,7 @@ import {
   CALL_START_LIMIT,
   DESK_SIGN_IN_LIMIT,
   RESULT_CHECK_LIMIT,
+  TOOL_CALL_LIMIT,
   RateLimiter,
   type RequestLimiter,
 } from "@/lib/http/rate-limit";
@@ -16,12 +17,12 @@ import { memoryCallStore, type CallStore } from "@/lib/postcall/record";
 import { readEnv, type ServerEnv } from "@/lib/server/env";
 import {
   memoryFirstDelivery,
-  memorySessionOwner,
+  memorySessionOwners,
   redisCallStore,
   redisFirstDelivery,
   redisIntakeStore,
-  redisSessionOwner,
-  type ClaimSession,
+  redisSessionOwners,
+  type SessionOwners,
   type FirstDelivery,
   type RedisLike,
 } from "@/lib/store/redis";
@@ -41,14 +42,17 @@ export interface ServerDeps {
   intakes: IntakeStore;
   calls: CallStore;
   firstDelivery: FirstDelivery;
-  claimSession: ClaimSession;
+  sessions: SessionOwners;
   medications: MedicationLookup;
   sms: Messenger;
   voice: VoiceAgentClient;
   hearing: SecondHearingClient;
+  /** The same second hearing, bounded to fit inside the caller-facing route's budget. */
+  quickHearing: SecondHearingClient;
   callStarts: RequestLimiter;
   resultChecks: RequestLimiter;
   deskSignIns: RequestLimiter;
+  toolCalls: RequestLimiter;
   now: () => Date;
 }
 
@@ -81,18 +85,24 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     intakes: redis ? redisIntakeStore(redis) : memoryIntakeStore(),
     calls: redis ? redisCallStore(redis) : memoryCallStore(),
     firstDelivery: redis ? redisFirstDelivery(redis) : memoryFirstDelivery(),
-    claimSession: redis ? redisSessionOwner(redis) : memorySessionOwner(),
+    sessions: redis ? redisSessionOwners(redis) : memorySessionOwners(),
     medications: createRxNormLookup(),
     // Texts are recorded, not sent, until a messaging provider is configured.
     sms: recordingMessenger(),
     voice: createVoiceAgentClient(env.assemblyAiKey),
     hearing: createSecondHearingClient(env.assemblyAiKey),
+    // A caller's own request cannot outlive its function, or the transcript it asked for
+    // would be left behind at the transcriber with nothing to delete it.
+    quickHearing: createSecondHearingClient(env.assemblyAiKey, fetch, { deadlineMs: 45_000 }),
     callStarts: redis
       ? createSharedRateLimiter(redis, CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs)
       : new RateLimiter(CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs),
     resultChecks: redis
       ? createSharedRateLimiter(redis, RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs)
       : new RateLimiter(RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs),
+    toolCalls: redis
+      ? createSharedRateLimiter(redis, TOOL_CALL_LIMIT.limit, TOOL_CALL_LIMIT.windowMs)
+      : new RateLimiter(TOOL_CALL_LIMIT.limit, TOOL_CALL_LIMIT.windowMs),
     deskSignIns: redis
       ? createSharedRateLimiter(redis, DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs)
       : new RateLimiter(DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs),

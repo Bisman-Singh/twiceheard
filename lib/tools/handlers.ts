@@ -22,6 +22,8 @@ import type { ToolName } from "@/lib/voice-agent/tools";
 
 export interface ToolDeps {
   clinic: Clinic;
+  /** Set when a browser is relaying the call, so one browser cannot drive another's intake. */
+  owner?: string;
   store: IntakeStore;
   medications: MedicationLookup;
   sms: Messenger;
@@ -106,13 +108,15 @@ const HANDLERS: {
 async function loadIntake(raw: string, deps: ToolDeps): Promise<Intake | null> {
   const id = canonicalIntakeId(raw);
   const intake = id ? await deps.store.get(id) : null;
-  return intake && intake.clinicId === deps.clinic.id ? intake : null;
+  if (!intake || intake.clinicId !== deps.clinic.id) return null;
+  // An intake a browser started is that browser's, and the phone's belong to the phone.
+  return intake.owner === deps.owner ? intake : null;
 }
 
 async function startIntake(deps: ToolDeps): Promise<ToolResult> {
   const now = deps.now();
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const intake = newIntake((deps.newId ?? newIntakeId)(), deps.clinic.id, now);
+    const intake = newIntake((deps.newId ?? newIntakeId)(), deps.clinic.id, now, deps.owner);
     if (!(await deps.store.create(intake))) continue;
     const local = clinicNow(deps.clinic.timezone, now);
     return {

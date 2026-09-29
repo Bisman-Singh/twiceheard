@@ -83,5 +83,7 @@ export class RateLimiter implements RequestLimiter {
 export const CALL_START_LIMIT = { limit: 5, windowMs: 10 * 60_000 } as const;
 /** A caller polls for their own chart while it is being worked out; generous, but not unbounded. */
 export const RESULT_CHECK_LIMIT = { limit: 60, windowMs: 10 * 60_000 } as const;
+/** A whole intake runs well inside this; a script trying to take a clinic's diary does not. */
+export const TOOL_CALL_LIMIT = { limit: 80, windowMs: 10 * 60_000 } as const;
 /** Guessing a desk code should be pointless, and slow. */
 export const DESK_SIGN_IN_LIMIT = { limit: 5, windowMs: 10 * 60_000 } as const;
