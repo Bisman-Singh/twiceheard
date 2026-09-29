@@ -87,3 +87,18 @@ export const RESULT_CHECK_LIMIT = { limit: 60, windowMs: 10 * 60_000 } as const;
 export const TOOL_CALL_LIMIT = { limit: 80, windowMs: 10 * 60_000 } as const;
 /** Guessing a desk code should be pointless, and slow. */
 export const DESK_SIGN_IN_LIMIT = { limit: 5, windowMs: 10 * 60_000 } as const;
+/** A page claims its own call once and erases it at most once; more than this is someone trying ids. */
+export const SESSION_ACT_LIMIT = { limit: 10, windowMs: 10 * 60_000 } as const;
+/**
+ * Every call this deployment will start in a day, across everyone.
+ *
+ * The per-address limits above blunt one abusive client, and addresses are
+ * cheap, so on their own they put no ceiling on what a public demo can spend:
+ * each call it starts costs platform minutes and a second transcription. This
+ * is the ceiling. It is deliberately far above what a day of people trying the
+ * demo looks like and far below a bill worth minding, and when it is reached
+ * the line says so plainly rather than failing in a way nobody can read.
+ */
+export const DAILY_CALL_CEILING = { limit: 250, windowMs: 24 * 60 * 60_000 } as const;
+/** One key, because the point of the ceiling is that everyone shares it. */
+export const EVERYONE = "everyone";

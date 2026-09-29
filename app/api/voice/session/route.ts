@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HttpError, assertSameOrigin, clientAddress, jsonError, readJson } from "@/lib/http/guard";
+import { EVERYONE } from "@/lib/http/rate-limit";
 import { CALL_GRANT_COOKIE, CALL_GRANT_TTL_MS, issueCallGrant } from "@/lib/security/call-grant";
 import { serverDeps } from "@/lib/server/deps";
 import { inlineSession } from "@/lib/voice-agent/session";
@@ -33,6 +34,17 @@ export async function POST(request: Request): Promise<Response> {
         429,
         "rate_limited",
         "Too many calls started. Please wait a few minutes.",
+      );
+    }
+    // Addresses are cheap, so the limit above bounds one client and nothing else.
+    // This is the ceiling that bounds the deployment: every call costs platform
+    // minutes and a second transcription, and a public demo should not be able to
+    // spend without limit just because someone has more addresses than patience.
+    if (!(await deps.dailyCalls.allow(EVERYONE))) {
+      throw new HttpError(
+        429,
+        "line_resting",
+        "The demo line has taken as many calls as it can today. Please try again tomorrow.",
       );
     }
     const { clinicId } = await readJson(request, bodySchema, 1024);

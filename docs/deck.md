@@ -76,8 +76,8 @@ one that was measured, and the last slide says what is not there.
 
 ## Where it stands today
 
-- Nothing is deployed. There is no phone number to dial. The client can bind one, but nothing calls
-  that path yet.
+- A phone call runs the stored agent on the host that holds the number; a browser call runs the same
+  prompt and tools inline. Both end at the same handlers and the same chart.
 - No messaging provider, so a booking records the message it would send. One clinic, defined in code.
   Everyone in it is fictional.
 - No deletion endpoint, no named grievance contact, and no age check, which a real deployment in India

@@ -132,3 +132,21 @@ export function cookieValue(header: string | null, name: string): string | undef
     .find((part) => part.startsWith(`${name}=`))
     ?.slice(name.length + 1);
 }
+
+/**
+ * Meter a caller-facing request on the caller and on the address at once.
+ *
+ * The owner comes from the grant cookie, and a fresh grant is a fresh bucket, so
+ * on its own it bounds one page and not one person. The address is what a new
+ * grant cannot change. Both, because each key answers what the other cannot.
+ */
+export async function meterCaller(
+  limiter: { allow(key: string): boolean | Promise<boolean> },
+  owner: string,
+  request: Request,
+): Promise<void> {
+  const allowed = (await limiter.allow(owner)) && (await limiter.allow(clientAddress(request)));
+  if (!allowed) {
+    throw new HttpError(429, "rate_limited", "Too many requests. Please wait a moment.");
+  }
+}

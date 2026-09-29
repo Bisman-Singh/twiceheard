@@ -5,6 +5,8 @@ import { memoryIntakeStore, type IntakeStore } from "@/lib/intake/store";
 import { createSharedRateLimiter } from "@/lib/http/shared-rate-limit";
 import {
   CALL_START_LIMIT,
+  DAILY_CALL_CEILING,
+  SESSION_ACT_LIMIT,
   DESK_SIGN_IN_LIMIT,
   RESULT_CHECK_LIMIT,
   TOOL_CALL_LIMIT,
@@ -51,6 +53,10 @@ export interface ServerDeps {
   /** The same second hearing, bounded to fit inside the caller-facing route's budget. */
   quickHearing: SecondHearingClient;
   callStarts: RequestLimiter;
+  /** The whole deployment's daily ceiling on starting calls, shared by everyone. */
+  dailyCalls: RequestLimiter;
+  /** Claiming and erasing a call: metered so an id cannot be hunted for free. */
+  sessionActs: RequestLimiter;
   resultChecks: RequestLimiter;
   deskSignIns: RequestLimiter;
   toolCalls: RequestLimiter;
@@ -127,6 +133,16 @@ function platform(env: ServerEnv): Pick<ServerDeps, "voice" | "hearing" | "quick
   };
 }
 
+/** One limiter, shared across instances when there is a store to share it in. */
+function meter(
+  redis: (RedisLike & Redis) | null,
+  rule: { readonly limit: number; readonly windowMs: number },
+): RequestLimiter {
+  return redis
+    ? createSharedRateLimiter(redis, rule.limit, rule.windowMs)
+    : new RateLimiter(rule.limit, rule.windowMs);
+}
+
 export function buildDeps(env: ServerEnv): ServerDeps {
   const redis = env.redis
     ? (new Redis({ ...env.redis, retry: REDIS_RETRY }) as unknown as RedisLike & Redis)
@@ -141,21 +157,12 @@ export function buildDeps(env: ServerEnv): ServerDeps {
     medications: createRxNormLookup(),
     sms: messenger(env),
     ...platform(env),
-    // A caller's own request cannot outlive its function, or the transcript it asked for
-    // would be left behind at the transcriber with nothing to delete it.
-
-    callStarts: redis
-      ? createSharedRateLimiter(redis, CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs)
-      : new RateLimiter(CALL_START_LIMIT.limit, CALL_START_LIMIT.windowMs),
-    resultChecks: redis
-      ? createSharedRateLimiter(redis, RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs)
-      : new RateLimiter(RESULT_CHECK_LIMIT.limit, RESULT_CHECK_LIMIT.windowMs),
-    toolCalls: redis
-      ? createSharedRateLimiter(redis, TOOL_CALL_LIMIT.limit, TOOL_CALL_LIMIT.windowMs)
-      : new RateLimiter(TOOL_CALL_LIMIT.limit, TOOL_CALL_LIMIT.windowMs),
-    deskSignIns: redis
-      ? createSharedRateLimiter(redis, DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs)
-      : new RateLimiter(DESK_SIGN_IN_LIMIT.limit, DESK_SIGN_IN_LIMIT.windowMs),
+    callStarts: meter(redis, CALL_START_LIMIT),
+    dailyCalls: meter(redis, DAILY_CALL_CEILING),
+    sessionActs: meter(redis, SESSION_ACT_LIMIT),
+    resultChecks: meter(redis, RESULT_CHECK_LIMIT),
+    toolCalls: meter(redis, TOOL_CALL_LIMIT),
+    deskSignIns: meter(redis, DESK_SIGN_IN_LIMIT),
     now: () => new Date(),
   };
 }

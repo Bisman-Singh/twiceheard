@@ -186,6 +186,19 @@ describe("POST /api/call/result", () => {
     expect(await response.json()).toMatchObject({ error: "internal_error" });
   });
 
+  it("counts a caller's asks by address too, so a fresh grant cannot reset the meter", async () => {
+    // The owner is derived from the grant, so a new grant is a new bucket. Each ask
+    // can drive a paid second transcription, which is what the address key bounds.
+    callDeps(relayed, { resultChecks: new RateLimiter(1, 600_000, () => NOW.getTime()) });
+    await post(claim, "/api/call/claim", { sessionId: SESSION });
+    await askResult();
+    const fresh = {
+      cookie: `${CALL_GRANT_COOKIE}=${issueCallGrant("sunrise-family", SECRET, NOW)}`,
+    };
+    const throttled = await askResult({ sessionId: SESSION }, fresh);
+    expect(throttled.status).toBe(429);
+  });
+
   it("refuses another site, no grant, a bad body and too many asks", async () => {
     callDeps(relayed, { resultChecks: new RateLimiter(1, 600_000, () => NOW.getTime()) });
     expect(

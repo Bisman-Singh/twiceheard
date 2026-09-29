@@ -193,4 +193,17 @@ describe("POST /api/voice/tool", () => {
     const headers = { cookie: `theme=dark; ${grantCookie().cookie}; other=1` };
     expect((await relay({ tool: "start_intake" }, headers)).status).toBe(200);
   });
+
+  it("stops starting calls once the deployment has taken its day's worth", async () => {
+    // Per-address limits bound one client, and addresses are cheap. This is the
+    // ceiling that bounds the bill, so it has to hold whoever is asking.
+    setServerDeps(testDeps({ dailyCalls: new RateLimiter(1, 86_400_000, () => NOW.getTime()) }));
+    expect((await begin()).status).toBe(200);
+    const spent = await begin();
+    expect(spent.status).toBe(429);
+    expect(await spent.json()).toMatchObject({
+      error: "line_resting",
+      message: "The demo line has taken as many calls as it can today. Please try again tomorrow.",
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as claim } from "@/app/api/call/claim/route";
 import { POST as forget } from "@/app/api/call/forget/route";
+import { RateLimiter } from "@/lib/http/rate-limit";
 import { CALL_GRANT_COOKIE, CALL_GRANT_TTL_MS, issueCallGrant } from "@/lib/security/call-grant";
 import { setServerDeps, type ServerDeps } from "@/lib/server/deps";
 import { callRecord } from "@/tests/fixtures/record";
@@ -148,5 +149,15 @@ describe("POST /api/call/forget", () => {
     const response = await askForget();
     expect(response.status).toBe(403);
     expect(await deps.calls.get(SESSION)).not.toBeNull();
+  });
+
+  it("meters claiming and erasing, so session ids cannot be hunted for free", async () => {
+    const deps = testDeps({ sessionActs: new RateLimiter(1, 600_000, () => NOW.getTime()) });
+    setServerDeps(deps);
+    // The first act spends the owner's allowance; the address is spent with it.
+    expect((await post(claim, "/api/call/claim", { sessionId: SESSION })).status).toBe(200);
+    const throttled = await askForget();
+    expect(throttled.status).toBe(429);
+    expect(await throttled.json()).toMatchObject({ error: "rate_limited" });
   });
 });

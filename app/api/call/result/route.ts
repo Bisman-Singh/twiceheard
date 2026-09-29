@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { claimIsLive, readCaller } from "@/lib/http/caller";
-import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/guard";
+import { HttpError, assertSameOrigin, jsonError, meterCaller, readJson } from "@/lib/http/guard";
 import { ArtifactsNotReady, processSession } from "@/lib/postcall/process";
 import type { CallRecord } from "@/lib/postcall/record";
 import { postCallDeps } from "@/lib/postcall/run";
@@ -33,9 +33,9 @@ export async function POST(request: Request): Promise<Response> {
     const caller = readCaller(request, deps.env.secret, deps.now());
     const clinic = caller ? deps.clinics.byId(caller.clinicId) : null;
     if (!caller || !clinic) throw new HttpError(401, "no_call_in_progress");
-    if (!(await deps.resultChecks.allow(caller.owner))) {
-      throw new HttpError(429, "rate_limited", "Too many requests. Please wait a moment.");
-    }
+    // Each ask can drive a paid second transcription, so it is metered on the
+    // address as well as the owner.
+    await meterCaller(deps.resultChecks, caller.owner, request);
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
     // Ownership, not a guessable id, is what makes this call's chart readable.
     // The owner is checked before any work is done; whether the claim was made

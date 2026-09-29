@@ -132,10 +132,10 @@ function length.
 - **No admin screen.** The clinic registry serves one fictional demo clinic defined in
   `lib/clinic/config.ts`. The schema and the registry are built for more than one, but there is no way
   to add or edit a clinic without editing that file.
-- **Nothing creates the stored agent or binds a phone number.** `lib/voice-agent/agent.ts` builds the
-  agent body, and the client has `createAgent`, `updateAgent`, `importPhoneNumber` and
-  `bindPhoneNumber`, but only the tests call them. There is no route, script or command that sets up a
-  deployment, and there is no live phone number.
+- **Setting up a deployment is a script, not a screen.** `scripts/setup-agent.ts` builds the stored
+  agent from this code, so the prompt, the tools and the per-clinic tool key cannot drift from what
+  the deployment serves. It prints what it would send and writes the body to a file; nothing reaches
+  the platform, and no number is touched, until `--apply`. There is no admin screen for any of it.
 - **One clinic code per clinic, and no staff accounts.** The desk signs in with a code derived from
   the server secret, so there is no per-person login, no roles and no audit of who looked at what.
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readCaller } from "@/lib/http/caller";
-import { HttpError, assertSameOrigin, jsonError, readJson } from "@/lib/http/guard";
+import { HttpError, assertSameOrigin, jsonError, meterCaller, readJson } from "@/lib/http/guard";
 import { serverDeps } from "@/lib/server/deps";
 
 export const runtime = "nodejs";
@@ -28,6 +28,9 @@ export async function POST(request: Request): Promise<Response> {
     if (!caller || !deps.clinics.byId(caller.clinicId)) {
       throw new HttpError(401, "no_call_in_progress");
     }
+    // A page claims its own call once and erases it at most once; anything beyond
+    // that is someone hunting for session ids, which this makes expensive.
+    await meterCaller(deps.sessionActs, caller.owner, request);
     const { sessionId } = await readJson(request, bodySchema, MAX_BODY_BYTES);
     // A charted call is a finished call, so the window for a live claim has passed.
     // Every call that came in over the phone ends up here, which is what stops a

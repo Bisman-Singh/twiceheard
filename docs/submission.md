@@ -200,13 +200,20 @@ pinned by a test that fails without it.
 
 Written plainly, because a judge should not have to find it out.
 
-- **Nothing is deployed and there is no phone number to dial.** The client can create a stored agent,
-  import a number and bind it, but nothing in the app or in a script calls those methods. There is no
-  deployment and no live line. The demo call is made from the browser page, which runs the same
-  handlers.
-- **Text messages need a provider.** The Twilio adapter is written and wired; with no credentials
-  configured the messenger reports failure rather than success, so the agent never promises a text
-  that is not coming.
+- **A phone call and a browser call take different routes to the same handlers.** A phone call runs
+  the stored agent, which lives on the platform's regional host because that is the only host that
+  can hold a number, and the platform calls the tool endpoints directly. A browser call runs the same
+  prompt and the same tool specs inline, relayed through this app. The chart is built the same way
+  either side. Only a phone call is charted by the completion webhook: a relayed session carries no
+  agent id, so a browser caller's own page asks for the chart instead.
+- **The demo sends no text messages.** The Twilio adapter is written and wired, but the demo
+  deployment runs with no messaging credentials on purpose: the number a caller gives is never
+  verified as theirs, so a public line that texts it is a way to text strangers at the operator's
+  expense. With none configured the messenger reports failure rather than success, the booking still
+  stands, and the agent says the front desk will confirm by phone.
+- **The demo line has a daily ceiling.** Every call costs platform minutes and a second
+  transcription, and the per-address limits bound one client rather than the bill, so the deployment
+  stops starting calls after a set number each day and says so. `DAILY_CALL_CEILING`.
 - **One clinic, defined in code.** The schema and the registry are built for more than one, but there
   is no screen for adding or editing a clinic. The demo clinic and everyone in it are fictional.
 - **No correction, and no named grievance contact.** A caller can delete the chart of the call they
