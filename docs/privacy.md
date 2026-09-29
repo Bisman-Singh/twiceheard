@@ -79,11 +79,28 @@ field was downgraded rather than being told only that it was.
 
 ## Asking for deletion
 
-There is no deletion endpoint in the app today. A caller cannot delete their own record from the page,
-and no route accepts such a request. This is a gap, and it is listed as one in the README.
+A caller can delete their own call from the page they called on. Once the chart is shown, the page
+offers to delete it. The first press only asks the question; answering it is what deletes, so no
+single click erases anything. The page then says the call is gone.
 
-Until one exists, a deletion request has to be handled by the repository owner, who can remove the
-record from Redis, and by AssemblyAI, who hold the recording and the session timeline.
+`POST /api/call/forget` is the route behind that. It takes the request from this site only, it
+requires the call grant cookie the call itself issued, and it requires that the session named in the
+request is one this browser claimed while the call was live. That is the same test the chart is read
+back under, in `app/api/call/result/route.ts`, because reading this record and erasing it are the same
+entitlement. One caller cannot delete another caller's call, and a grant for one clinic cannot reach
+another clinic's records. Asking twice is not an error: a record that has already gone answers the
+same way as one erased just now, so a retry after a dropped reply is safe, and the answer never says
+whether some other clinic holds that id.
+
+Deleting removes the call record itself and its place in the clinic's index, in Redis and in the
+in-memory store alike, so the call leaves the clinic's desk as well as the caller's page. Nothing is
+kept in its place. The deletion is logged as the clinic id and the fact that a record went, and
+nothing else. `lib/postcall/record.ts` and `lib/store/redis.ts` hold both stores.
+
+Two things this cannot delete, because the app never held them. The recording and the session
+timeline stay with AssemblyAI, under their retention; a caller who wants those removed has to ask
+AssemblyAI, and the repository owner would carry that request. The second hearing's transcript is not
+one of them: it is already deleted there as soon as its words have been scored.
 
 **TODO for the repository owner: put a grievance contact here.** The India Digital Personal Data
 Protection Act requires a named contact who answers questions and complaints about personal data, and

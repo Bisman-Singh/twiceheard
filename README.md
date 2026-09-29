@@ -130,9 +130,12 @@ function length.
   agent body, and the client has `createAgent`, `updateAgent`, `importPhoneNumber` and
   `bindPhoneNumber`, but only the tests call them. There is no route, script or command that sets up a
   deployment, and there is no live phone number.
-- **No deletion endpoint.** Callers cannot ask the app to delete a record. See `docs/privacy.md`.
 - **One clinic code per clinic, and no staff accounts.** The desk signs in with a code derived from
   the server secret, so there is no per-person login, no roles and no audit of who looked at what.
+
+A caller can delete the chart of the call they just made from `/call`, which erases the record and
+its index entry. The desk has no deletion control, and there is no way to correct a value after a
+call. See `docs/privacy.md`.
 
 ## AI disclosure
 

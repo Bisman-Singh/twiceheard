@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { DEMO_CLINIC } from "@/lib/clinic/config";
 import { newIntake } from "@/lib/intake/intake";
 import { processSession } from "@/lib/postcall/process";
-import { memoryCallStore, type CallRecord } from "@/lib/postcall/record";
+import { memoryCallStore, type CallRecord, type CallStore } from "@/lib/postcall/record";
 import {
   memoryFirstDelivery,
   memorySessionOwner,
@@ -14,6 +14,7 @@ import {
   type ClaimSession,
   type RedisLike,
 } from "@/lib/store/redis";
+import { callRecord } from "@/tests/fixtures/record";
 
 /** An in-memory stand-in that behaves like Redis for the commands the stores use, including NX and expiry. */
 function fakeRedis(clock: { now: number }) {
@@ -38,6 +39,10 @@ function fakeRedis(clock: { now: number }) {
       });
       return "OK";
     },
+    async del(key) {
+      values.delete(key);
+      return 1;
+    },
     async sadd(key, member) {
       const set = sets.get(key) ?? new Set();
       set.add(member);
@@ -53,6 +58,10 @@ function fakeRedis(clock: { now: number }) {
       zsets.set(key, zset);
       return 1;
     },
+    async zrem(key, member) {
+      zsets.get(key)?.delete(member);
+      return 1;
+    },
     async zrange(key, start, stop) {
       const sorted = [...(zsets.get(key) ?? new Map()).entries()]
         .sort((a, b) => b[1] - a[1])
@@ -60,7 +69,7 @@ function fakeRedis(clock: { now: number }) {
       return sorted.slice(start, stop + 1);
     },
   };
-  return { redis, values };
+  return { redis, values, zsets };
 }
 
 describe("redisIntakeStore", () => {
@@ -125,6 +134,55 @@ describe("redisCallStore", () => {
     expect(await store.list("sunrise-family", 0)).toEqual([]);
     expect((await store.get("new"))?.processedAt).toBe(2);
     expect(await store.get("missing")).toBeNull();
+  });
+});
+
+describe("forgetting a call", () => {
+  const record = callRecord({ full_name: { value: "Arjun Mehta", status: "confirmed" } });
+  const cases: Array<[string, () => CallStore]> = [
+    ["over Redis", () => redisCallStore(fakeRedis({ now: 0 }).redis)],
+    ["in memory", () => memoryCallStore()],
+  ];
+
+  for (const [where, build] of cases) {
+    it(`erases the holding clinic's own record and nobody else's, ${where}`, async () => {
+      const store = build();
+      await store.save({ ...record, sessionId: "mine", processedAt: 3 });
+      await store.save({ ...record, sessionId: "kept-newer", processedAt: 2 });
+      await store.save({ ...record, sessionId: "kept-older", processedAt: 1 });
+      await store.save({ ...record, sessionId: "theirs", clinicId: "other-clinic" });
+
+      expect(await store.remove("sunrise-family", "theirs")).toBe(false);
+      expect(await store.get("theirs")).not.toBeNull();
+      // A call that was never recorded is nothing to erase, not a failure.
+      expect(await store.remove("sunrise-family", "never-happened")).toBe(false);
+
+      expect(await store.remove("sunrise-family", "mine")).toBe(true);
+      expect(await store.get("mine")).toBeNull();
+      // Asked twice, the second ask finds nothing left and says so without complaint.
+      expect(await store.remove("sunrise-family", "mine")).toBe(false);
+      // Every other call the clinic holds is untouched, and still in order.
+      expect((await store.list("sunrise-family", 10)).map((call) => call.sessionId)).toEqual([
+        "kept-newer",
+        "kept-older",
+      ]);
+    });
+  }
+
+  it("takes the id out of the clinic's index too, so the desk's pages do not repeat a row", async () => {
+    const { redis, zsets } = fakeRedis({ now: 0 });
+    const store = redisCallStore(redis);
+    await store.save({ ...record, sessionId: "older", processedAt: 1 });
+    await store.save({ ...record, sessionId: "newer", processedAt: 2 });
+
+    expect(await store.remove("sunrise-family", "newer")).toBe(true);
+    expect([...(zsets.get("twiceheard:calls:sunrise-family") ?? []).keys()]).toEqual(["older"]);
+    // One call is left, so page one holds it and page two is empty. An index entry
+    // with no record behind it would push the older call onto both pages.
+    expect((await store.list("sunrise-family", 1)).map((call) => call.sessionId)).toEqual([
+      "older",
+    ]);
+    expect(await store.list("sunrise-family", 1, 1)).toEqual([]);
   });
 });
 

@@ -34,6 +34,15 @@ export interface CallStore {
   get(sessionId: string): Promise<CallRecord | null>;
   /** Newest first, skipping `offset` of the newest so a desk can page back. */
   list(clinicId: string, limit: number, offset?: number): Promise<CallRecord[]>;
+  /**
+   * Erases one call for good, so a person can be forgotten on request.
+   *
+   * The clinic is part of the ask, not something the store infers, so a record
+   * can only ever be erased by the clinic that holds it. Reports whether a
+   * record was there to erase: a caller asking twice is not an error, but the
+   * difference is worth an audit line the first time.
+   */
+  remove(clinicId: string, sessionId: string): Promise<boolean>;
 }
 
 export function memoryCallStore(): CallStore {
@@ -50,6 +59,11 @@ export function memoryCallStore(): CallStore {
         .filter((record) => record.clinicId === clinicId)
         .sort((a, b) => b.processedAt - a.processedAt)
         .slice(offset, offset + limit);
+    },
+    async remove(clinicId, sessionId) {
+      if (records.get(sessionId)?.clinicId !== clinicId) return false;
+      records.delete(sessionId);
+      return true;
     },
   };
 }

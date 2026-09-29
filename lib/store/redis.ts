@@ -18,9 +18,11 @@ import type { CallRecord, CallStore } from "@/lib/postcall/record";
 export interface RedisLike {
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: unknown, options?: { nx?: true; px?: number }): Promise<unknown>;
+  del(key: string): Promise<unknown>;
   sadd(key: string, member: string): Promise<unknown>;
   smembers(key: string): Promise<string[]>;
   zadd(key: string, entry: { score: number; member: string }): Promise<unknown>;
+  zrem(key: string, member: string): Promise<unknown>;
   zrange(key: string, start: number, stop: number, options: { rev: true }): Promise<string[]>;
 }
 
@@ -94,6 +96,17 @@ export function redisCallStore(redis: RedisLike): CallStore {
         if (ids.length < limit) break;
       }
       return found.slice(0, limit);
+    },
+    async remove(clinicId, sessionId) {
+      // Read first: the clinic on the record decides, not the clinic on the request.
+      const record = await redis.get<CallRecord>(keys.call(sessionId));
+      if (record?.clinicId !== clinicId) return false;
+      await redis.del(keys.call(sessionId));
+      // The id sits in the clinic's index as well as under its own key. Leaving the
+      // index entry would keep a place in every page `list` counts through, so the
+      // desk's later pages would slide by one against a row that no longer exists.
+      await redis.zrem(keys.calls(clinicId), sessionId);
+      return true;
     },
   };
 }

@@ -232,3 +232,107 @@ describe("the chart after the call", () => {
     await waitFor(() => expect(screen.getByText(/The chart is not ready yet/)).toBeInTheDocument());
   });
 });
+
+describe("deleting the call from the caller's own page", () => {
+  const forgetFetch = vi.fn<() => Promise<Response>>();
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", forgetFetch);
+    forgetFetch.mockResolvedValue({ ok: true } as Response);
+    fetchResult.mockResolvedValue({
+      status: "ready",
+      record: callRecord(
+        { full_name: { value: "Arjun Mehta", status: "confirmed" } },
+        {},
+        { sessionId: "sess_live" },
+      ),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const press = (name: string) => userEvent.click(screen.getByRole("button", { name }));
+  const chart = () => screen.queryByRole("region", { name: "Your chart" });
+
+  /** Runs a call through to the point where the caller is looking at their chart. */
+  async function afterTheChart() {
+    const call = connected();
+    const view = panel();
+    await userEvent.click(button());
+    await call.say((h) => h.onSession("sess_live"));
+    await call.say((h) => h.onPhase("ended"));
+    await screen.findByRole("region", { name: "Your chart" });
+    return view;
+  }
+
+  it("offers deletion under the chart and says it cannot be undone", async () => {
+    const { container } = await afterTheChart();
+    expect(screen.getByText(/the clinic desk never sees it/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete this call" })).toBeEnabled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("asks the question first, and deletes nothing until it is answered", async () => {
+    const { container } = await afterTheChart();
+    await press("Delete this call");
+    expect(screen.getByText("Delete the chart from this call?")).toBeInTheDocument();
+    expect(forgetFetch).not.toHaveBeenCalled();
+    expect(chart()).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("puts the offer back, and keeps the chart, when the caller says no", async () => {
+    await afterTheChart();
+    await press("Delete this call");
+    await press("Keep it");
+    expect(screen.queryByText("Delete the chart from this call?")).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete this call" })).toBeInTheDocument();
+    expect(forgetFetch).not.toHaveBeenCalled();
+    expect(chart()).toBeInTheDocument();
+  });
+
+  it("deletes the call when the caller says yes, and says plainly that it is gone", async () => {
+    const { container } = await afterTheChart();
+    await press("Delete this call");
+    await press("Yes, delete it");
+    expect(forgetFetch).toHaveBeenCalledWith("/api/call/forget", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: "sess_live" }),
+    });
+    expect(screen.getByText("This call has been deleted")).toBeInTheDocument();
+    expect(screen.getByText(/gone from Twiceheard/)).toBeInTheDocument();
+    // The chart the caller just deleted is not left on screen behind the message.
+    expect(chart()).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("holds both answers out of reach while the deletion is in flight", async () => {
+    let finish: (response: Response) => void = () => undefined;
+    forgetFetch.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    await afterTheChart();
+    await press("Delete this call");
+    await press("Yes, delete it");
+    expect(screen.getByText("Deleting.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Yes, delete it" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep it" })).toBeDisabled();
+    await act(async () => finish({ ok: true } as Response));
+    expect(screen.getByText("This call has been deleted")).toBeInTheDocument();
+  });
+
+  it("says nothing was deleted when the server refuses or the request never lands", async () => {
+    forgetFetch.mockResolvedValueOnce({ ok: false } as Response);
+    await afterTheChart();
+    await press("Delete this call");
+    await press("Yes, delete it");
+    expect(screen.getByText(/Nothing was deleted/)).toBeInTheDocument();
+    expect(chart()).toBeInTheDocument();
+
+    forgetFetch.mockRejectedValueOnce(new Error("offline"));
+    await press("Yes, delete it");
+    expect(screen.getByText(/Nothing was deleted/)).toBeInTheDocument();
+    expect(chart()).toBeInTheDocument();
+  });
+});

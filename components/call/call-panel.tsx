@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { ForgetRecord } from "@/components/call/forget-record";
 import { useCallResult, type ResultState } from "@/components/call/use-call-result";
 import { VerifiedChart } from "@/components/call/verified-chart";
 import { claimSession } from "@/lib/call/result-client";
@@ -169,7 +170,19 @@ const RESULT_WORDS: Partial<Record<ResultState["status"], string>> = {
 };
 
 function CallResult({ result }: { result: ResultState }) {
-  if (result.record) return <VerifiedChart record={result.record} />;
+  // Held against the session it belongs to, so a later call opens with a chart again.
+  const [forgotten, setForgotten] = useState("");
+  const sessionId = result.record?.sessionId ?? "";
+  const forget = useCallback(() => setForgotten(sessionId), [sessionId]);
+
+  if (result.record) {
+    return (
+      <>
+        {forgotten !== sessionId && <VerifiedChart record={result.record} />}
+        <ForgetRecord key={sessionId} sessionId={sessionId} onForgotten={forget} />
+      </>
+    );
+  }
   const words = RESULT_WORDS[result.status];
   if (!words) return null;
   return (
