@@ -4,9 +4,11 @@ import { axe } from "vitest-axe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Clinic } from "@/lib/clinic/config";
 import { DEMO_CLINIC } from "@/lib/clinic/config";
+import { staticRegistry } from "@/lib/clinic/registry";
+import { clinicForCode, deskCode } from "@/lib/security/desk-session";
 import { setServerDeps } from "@/lib/server/deps";
 import { callRecord } from "@/tests/fixtures/record";
-import { testDeps } from "@/tests/api/helpers";
+import { SECRET, testDeps } from "@/tests/api/helpers";
 
 const signedIn = vi.hoisted(() => ({ clinic: null as Clinic | null }));
 vi.mock("@/lib/desk/session", () => ({
@@ -44,6 +46,26 @@ describe("the desk before anyone signs in", () => {
     expect(screen.getByLabelText("Clinic code")).toBeInTheDocument();
     expect(screen.queryByText(/Finished calls/)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("publishes the demonstration clinic's code, and the code it prints is one that works", async () => {
+    setServerDeps(testDeps());
+    await openDesk();
+    const code = deskCode(DEMO_CLINIC.id, SECRET);
+    expect(screen.getByText(/A clinic code is required/)).toHaveTextContent(
+      `For this demonstration, use ${code}.`,
+    );
+    // Published, not waived: the field is still required and the code still has to match.
+    expect(screen.getByLabelText("Clinic code")).toBeRequired();
+    expect(clinicForCode(code, [DEMO_CLINIC.id], SECRET)).toBe(DEMO_CLINIC.id);
+    expect(clinicForCode("WRONGCODE9", [DEMO_CLINIC.id], SECRET)).toBeNull();
+  });
+
+  it("prints no code where the deployment does not serve the demonstration clinic", async () => {
+    setServerDeps(testDeps({ clinics: staticRegistry([]) }));
+    await openDesk();
+    expect(screen.getByLabelText("Clinic code")).toBeInTheDocument();
+    expect(screen.queryByText(/For this demonstration/)).toBeNull();
   });
 });
 

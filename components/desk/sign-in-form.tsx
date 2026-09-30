@@ -9,11 +9,23 @@ import { signInAction } from "@/app/desk/actions";
  * One field, because a clinic's code is the whole credential. The failure
  * message never says whether a code was close, and the same message covers a
  * wrong code whichever clinic it was aimed at.
+ *
+ * `demoCode` is the published code of the fictional demonstration clinic, or
+ * null where there is none to publish. It is printed, never filled in: the
+ * field stays required and the server still has to agree with what was typed.
+ * It is deliberately kept out of the field's description, so the description a
+ * screen reader reads on a refusal stays the reason it was refused.
  */
-export function SignInForm() {
+export function SignInForm({ demoCode }: { demoCode: string | null }) {
   const [problem, submit, pending] = useActionState(signInAction, "");
   return (
     <form action={submit} className="max-w-sm border-t-2 border-[var(--text)] pt-5">
+      {demoCode && (
+        <p className="mb-4 border-l-2 border-[var(--accent)] pl-3 text-sm">
+          A clinic code is required. For this demonstration, use{" "}
+          <code className="font-semibold tracking-widest">{demoCode}</code>.
+        </p>
+      )}
       <label htmlFor="code" className="block font-semibold">
         Clinic code
       </label>
