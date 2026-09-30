@@ -18,7 +18,7 @@ every field is either verified or flagged.
 
 ```bash
 npm run dev            # local app on :3000
-npm run verify         # typecheck, lint, format check, tests with coverage, production build
+npm run verify         # dependency audit, typecheck, lint, format check, tests with coverage, build
 npm test               # tests only
 node scripts/smoke-call.mjs <outDir>   # one synthetic call against the live voice API
 ```
