@@ -48,6 +48,13 @@ test("@live a whole call, recorded, ending in the chart the clinic receives", as
   await page.getByRole("button", { name: "Call the clinic" }).click();
   await expect(page.getByText("Connected. Speak normally.")).toBeVisible({ timeout: 30_000 });
 
+  // What is worth watching is the conversation and the slip, and the lines a caller is
+  // offered before the call push both below a 900 pixel fold. Anyone on this page scrolls
+  // here once the call connects, so the recording does the same and holds still after.
+  await page
+    .getByRole("heading", { name: "Sunrise Family Clinic, intake line" })
+    .evaluate((heading) => heading.scrollIntoView({ block: "start" }));
+
   // The caller's audio is a fixed track, so the call takes as long as the track.
   const slip = page.getByRole("region", { name: "Intake slip" });
   await expect(slip).toContainText("Arjun Mehta", { timeout: 90_000 });
