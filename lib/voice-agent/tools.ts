@@ -70,7 +70,7 @@ const INTAKE_ID = {
  * instead of replying after the first pause.
  */
 const VALUE_SHAPES =
-  "full_name: the whole name. date_of_birth: YYYY-MM-DD. phone: every digit the caller gives, ten of them in India, spaces where they paused; wait for the whole number before calling. reason_for_visit and preferred_time: the caller's own words. medications and allergies: items separated by semicolons, or the word none.";
+  "full_name: the whole name, given and family together; a caller often says the two parts with a pause between them, so wait for all of it. When the caller has spelled a name out, use the spelling they gave, not what was heard the first time. date_of_birth: YYYY-MM-DD. phone: every digit the caller gives, ten of them in India, spaces where they paused; wait for the whole number before calling. reason_for_visit and preferred_time: the caller's own words. medications and allergies: items separated by semicolons, or the word none.";
 
 export const TOOL_SPECS: readonly ToolSpec[] = [
   {

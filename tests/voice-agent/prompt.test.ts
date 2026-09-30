@@ -145,16 +145,26 @@ describe("systemPrompt: rules the new instructions must not have disturbed", () 
     expect(prompt).toContain("Never read out an intake id or a slot id.");
   });
 
+  // A caller on the phone line gave his name, heard a different name read back at
+  // confidence 1.0, said no, was asked to say it again, and was heard the same way a
+  // second time. Saying it again is not a correction, it is the same input.
+  it("asks the caller to spell a name it got wrong, rather than to repeat it", () => {
+    expect(prompt).toMatch(/says a name is wrong[^.]*ask them to spell it/i);
+    expect(prompt).toMatch(/say it again only hears it the same way twice/i);
+    expect(prompt).toMatch(/spelled name back as a word, not as letters/i);
+  });
+
   it("still expects English, Hindi or a mix, and answers in simple English", () => {
     expect(prompt).toContain("The caller may speak English, Hindi, or a mix.");
   });
 
   it("stays short enough to be a phone-call instruction, and names the clinic it answers for", () => {
     expect(prompt).toContain("Sunrise Family Clinic");
-    // Four rules were added for what a real caller does: goes quiet, asks to hear a
-    // value again, disowns one, asks a question of their own, and rings off. The
-    // bound moves with them and stays tight, because a long prompt drowns its best rule.
-    expect(prompt.length).toBeLessThan(4_300);
+    // Rules were added for what a real caller does: goes quiet, asks to hear a value
+    // again, disowns one, asks a question of their own, rings off, and tells the agent
+    // it has their name wrong. The bound moves with them and stays tight, because a
+    // long prompt drowns its best rule.
+    expect(prompt.length).toBeLessThan(4_500);
   });
 });
 

@@ -40,6 +40,15 @@ describe("execution modes", () => {
 });
 
 describe("parameter hints, which are what turn-taking runs on", () => {
+  // Two calls split "Bisman Singh" into two turns, one of which never ended, so the
+  // hint has to say that a name arrives in parts the way a phone number does.
+  it("tells the platform a name arrives in parts, and to prefer a spelling over a guess", () => {
+    const saveField = TOOL_SPECS.find((spec) => spec.name === "save_field");
+    const hint = String(saveField?.parameters.properties.value?.description);
+    expect(hint).toMatch(/pause between them, so wait for all of it/i);
+    expect(hint).toMatch(/spelled a name out, use the spelling they gave/i);
+  });
+
   it("tells the platform a phone number is ten digits and to wait for all of them", () => {
     const value = property("save_field", "value");
     expect(String(value.description)).toContain("ten of them in India");

@@ -20,12 +20,21 @@
  * lowered the grade of correct calls. The platform's own guidance for capturing a
  * value you cannot get wrong is the opposite: be more patient, not less.
  *
- * So the listening settings are the platform's defaults, deliberately, and the
- * latency has to come out of the turn itself rather than out of the caller's
- * pauses. Anything measured here has to be measured with a harness that does not
- * block its own audio pump: synthesising the caller's speech mid-call once added
- * 2.2 s to every gap and made the agent look two seconds slower than it is.
+ * So end of turn is left to the platform, and the latency has to come out of the
+ * turn itself rather than out of the caller's pauses. Anything measured here has
+ * to be measured with a harness that does not block its own audio pump:
+ * synthesising the caller's speech mid-call once added 2.2 s to every gap and
+ * made the agent look two seconds slower than it is.
+ *
+ * `transcription_mode` is the one setting this file does choose, and it chooses
+ * the slowest of the three. A real caller on the phone line gave his name and it
+ * came back as a different name, at confidence 1.0, twice in a row: the wrong
+ * word, held with certainty, is the failure this whole product exists to catch.
+ * `max_accuracy` is documented for exactly that audio, and the cost is transcript
+ * latency on a turn the agent already spends a second and a half thinking about.
+ * This is the same reasoning that rejected `min_latency` above, followed the
+ * other way: for a value you cannot get wrong, be more patient, not less.
  */
-export const LISTENING = {} as const;
+export const LISTENING = { transcription_mode: "max_accuracy" } as const;
 
 export type Listening = typeof LISTENING;

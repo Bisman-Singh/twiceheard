@@ -1,5 +1,5 @@
 import type { Clinic } from "@/lib/clinic/config";
-import { LISTENING } from "@/lib/voice-agent/listening";
+import { LISTENING, type Listening } from "@/lib/voice-agent/listening";
 import { greeting, keyterms, systemPrompt, transcriptionPrompt } from "@/lib/voice-agent/prompt";
 import { httpTools, type HttpTool } from "@/lib/voice-agent/tools";
 
@@ -21,7 +21,7 @@ export interface AgentBody {
     keyterms: string[];
     transcription_prompt: string;
     voice_focus: "far-field";
-  };
+  } & Listening;
   tools: HttpTool[];
 }
 

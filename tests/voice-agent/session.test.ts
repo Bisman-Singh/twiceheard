@@ -29,17 +29,22 @@ describe("inlineSession", () => {
     expect((saveField?.parameters as { required: string[] }).required).toContain("intake_id");
   });
 
-  it("leaves listening to the platform, because tuning it made the product worse", () => {
-    // Nothing here overrides how the platform listens. Fixed silence thresholds turned
-    // off its entity-aware waiting and measured slower, and the fastest transcription
-    // mode drops the barge-in guard to zero, which makes a readback interruptible and so
-    // lowers the grade of calls that were actually correct.
+  it("leaves end of turn to the platform, because tuning it made the product worse", () => {
+    // Fixed silence thresholds turned off the platform's entity-aware waiting, which is
+    // what holds the turn open for a whole phone number, and measured slower.
     expect(session.input).not.toHaveProperty("turn_detection");
-    expect(session.input).not.toHaveProperty("transcription_mode");
     const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });
-    // The phone and the browser hear the same way, or one of them drifts.
     expect(stored.input).not.toHaveProperty("turn_detection");
-    expect(stored.input).not.toHaveProperty("transcription_mode");
+  });
+
+  it("transcribes for accuracy rather than speed, on the phone and in the browser alike", () => {
+    // A caller's name came back as a different name at confidence 1.0, twice. The
+    // fastest mode is the opposite of what that needs: it also drops the barge-in guard
+    // to zero, which makes a readback interruptible and lowers the grade of calls that
+    // were correct. The phone and the browser hear the same way, or one of them drifts.
+    expect(session.input.transcription_mode).toBe("max_accuracy");
+    const stored = agentBody(DEMO_CLINIC, { baseUrl: "https://twiceheard.example", toolKey: "k" });
+    expect(stored.input.transcription_mode).toBe("max_accuracy");
   });
 
   it("assumes a caller close to the microphone, unlike a phone line", () => {
