@@ -1,258 +1,515 @@
 <!doctype html>
 <html lang="en-IN">
-<head>
-<meta charset="utf-8" />
-<title>Twiceheard</title>
-<style>
-  @page { size: 297mm 167mm; margin: 0; }
-  :root {
-    --bg: #f6f7fb; --text: #101528; --muted: #4a5068; --line: #858ba6;
-    --green: #1d6b3f; --amber: #8a5a00; --red: #a01c1c;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
-  section { width: 297mm; height: 167mm; padding: 14mm 16mm; page-break-after: always;
-    display: flex; flex-direction: column; border-bottom: 0; }
-  section:last-child { page-break-after: auto; }
-  h1 { font-size: 30pt; line-height: 1.1; margin: 0 0 4mm; letter-spacing: -0.4pt; }
-  h2 { font-size: 17pt; margin: 0 0 6mm; padding-bottom: 2.5mm;
-       border-bottom: 2px solid var(--text); letter-spacing: -0.2pt; }
-  p, li { font-size: 11.5pt; line-height: 1.5; margin: 0 0 3mm; max-width: 235mm; }
-  .lede { font-size: 13pt; color: var(--muted); }
-  ul { margin: 0 0 3mm; padding-left: 5mm; }
-  li { margin-bottom: 2mm; }
-  .rule { border-top: 1px solid var(--line); margin: 4mm 0; }
-  .grid { display: grid; grid-template-columns: 52mm 1fr; gap: 0; margin-top: 2mm; }
-  .grid dt { font-weight: 700; padding: 2.2mm 0; border-bottom: 1px solid var(--line); font-size: 11pt; }
-  .grid dd { margin: 0; padding: 2.2mm 0; border-bottom: 1px solid var(--line); font-size: 11pt; }
-  .foot { margin-top: auto; font-size: 8.5pt; color: var(--muted);
-          border-top: 1px solid var(--line); padding-top: 2.5mm; }
-  .green { color: var(--green); font-weight: 700; }
-  .amber { color: var(--amber); font-weight: 700; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
-  .tag { font-size: 9pt; letter-spacing: 1.2pt; text-transform: uppercase; color: var(--muted);
-         margin: 0 0 3mm; }
-  table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
-  th { text-align: left; font-weight: 700; padding: 2.2mm 3mm 2.2mm 0;
-       border-bottom: 2px solid var(--text); }
-  td { padding: 2.2mm 3mm 2.2mm 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  code { font-family: ui-monospace, Menlo, monospace; font-size: 10pt; }
-</style>
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Twiceheard</title>
+    <style>
+      @page {
+        size: 297mm 167mm;
+        margin: 0;
+      }
+      :root {
+        --bg: #f6f7fb;
+        --text: #101528;
+        --muted: #4a5068;
+        --line: #858ba6;
+        --green: #1d6b3f;
+        --amber: #8a5a00;
+        --red: #a01c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+      }
+      section {
+        width: 297mm;
+        height: 167mm;
+        padding: 14mm 16mm;
+        page-break-after: always;
+        display: flex;
+        flex-direction: column;
+        border-bottom: 0;
+      }
+      section:last-child {
+        page-break-after: auto;
+      }
+      h1 {
+        font-size: 30pt;
+        line-height: 1.1;
+        margin: 0 0 4mm;
+        letter-spacing: -0.4pt;
+      }
+      h2 {
+        font-size: 17pt;
+        margin: 0 0 6mm;
+        padding-bottom: 2.5mm;
+        border-bottom: 2px solid var(--text);
+        letter-spacing: -0.2pt;
+      }
+      p,
+      li {
+        font-size: 11.5pt;
+        line-height: 1.5;
+        margin: 0 0 3mm;
+        max-width: 235mm;
+      }
+      .lede {
+        font-size: 13pt;
+        color: var(--muted);
+      }
+      ul {
+        margin: 0 0 3mm;
+        padding-left: 5mm;
+      }
+      li {
+        margin-bottom: 2mm;
+      }
+      .rule {
+        border-top: 1px solid var(--line);
+        margin: 4mm 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 52mm 1fr;
+        gap: 0;
+        margin-top: 2mm;
+      }
+      .grid dt {
+        font-weight: 700;
+        padding: 2.2mm 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 11pt;
+      }
+      .grid dd {
+        margin: 0;
+        padding: 2.2mm 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 11pt;
+      }
+      .foot {
+        margin-top: auto;
+        font-size: 8.5pt;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+        padding-top: 2.5mm;
+      }
+      .green {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .amber {
+        color: var(--amber);
+        font-weight: 700;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10mm;
+      }
+      .tag {
+        font-size: 9pt;
+        letter-spacing: 1.2pt;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 3mm;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 10.5pt;
+      }
+      th {
+        text-align: left;
+        font-weight: 700;
+        padding: 2.2mm 3mm 2.2mm 0;
+        border-bottom: 2px solid var(--text);
+      }
+      td {
+        padding: 2.2mm 3mm 2.2mm 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      code {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 10pt;
+      }
+    </style>
+  </head>
+  <body>
+    <section>
+      <p class="tag">AssemblyAI Voice Agent Hackathon</p>
+      <h1>Twiceheard</h1>
+      <p class="lede">
+        A voice agent answers the clinic's phone, takes the patient's details, and books the
+        appointment. Every critical value is heard twice, and the chart the clinic receives says
+        which values were verified and which were not.
+      </p>
+      <div class="rule"></div>
+      <p>
+        The name is the claim. One hearing is the live conversation. The second is the recording,
+        transcribed again on its own with a confidence score on every word. A line is green only
+        when both agree.
+      </p>
+      <p class="foot">
+        twiceheard.vercel.app &nbsp;&middot;&nbsp; github.com/Bisman-Singh/twiceheard
+      </p>
+    </section>
 
-<section>
-  <p class="tag">AssemblyAI Voice Agent Hackathon</p>
-  <h1>Twiceheard</h1>
-  <p class="lede">A voice agent answers the clinic's phone, takes the patient's details, and books
-  the appointment. Every critical value is heard twice, and the chart the clinic receives says which
-  values were verified and which were not.</p>
-  <div class="rule"></div>
-  <p>The name is the claim. One hearing is the live conversation. The second is the recording,
-  transcribed again on its own with a confidence score on every word. A line is green only when both
-  agree.</p>
-  <p class="foot">twiceheard.vercel.app &nbsp;&middot;&nbsp; github.com/Bisman-Singh/twiceheard</p>
-</section>
+    <section>
+      <h2>The problem</h2>
+      <p class="lede">
+        A clinic can let a voice agent answer the phone. What it cannot do is act on a name, a date
+        of birth or a phone number that only a model says it heard.
+      </p>
+      <div class="rule"></div>
+      <p>
+        Intake is where a visit starts and where it goes wrong. A transposed digit in a phone number
+        means the reminder never arrives. A missed allergy is a clinical risk. A drug name heard as
+        a similar one is worse than no drug name at all.
+      </p>
+      <p>
+        Voice agents today hand over a transcript and a summary. Both are the model's account of the
+        call. If the model was wrong, nothing in the artefact says so, and the front desk has no way
+        to tell a confident mistake from a correct answer.
+      </p>
+      <p class="foot">The failure is silent, which is what makes it expensive.</p>
+    </section>
 
-<section>
-  <h2>The problem</h2>
-  <p class="lede">A clinic can let a voice agent answer the phone. What it cannot do is act on a name,
-  a date of birth or a phone number that only a model says it heard.</p>
-  <div class="rule"></div>
-  <p>Intake is where a visit starts and where it goes wrong. A transposed digit in a phone number means
-  the reminder never arrives. A missed allergy is a clinical risk. A drug name heard as a similar one is
-  worse than no drug name at all.</p>
-  <p>Voice agents today hand over a transcript and a summary. Both are the model's account of the call.
-  If the model was wrong, nothing in the artefact says so, and the front desk has no way to tell a
-  confident mistake from a correct answer.</p>
-  <p class="foot">The failure is silent, which is what makes it expensive.</p>
-</section>
+    <section>
+      <h2>What Twiceheard does</h2>
+      <div class="cols">
+        <div>
+          <p>
+            <strong>On the call.</strong> The agent collects the reason for the visit, name, date of
+            birth, phone number, medications and allergies, then offers real open times from the
+            clinic's diary and books one.
+          </p>
+          <p>
+            <strong>Every value is read back.</strong> The sentence is built by the server, not by
+            the model, so digits are spoken in the groups people use and a date never comes out in
+            the wrong order.
+          </p>
+        </div>
+        <div>
+          <p>
+            <strong>After the call.</strong> The chart is rebuilt from the session record rather
+            than from the model's report, and the recording is transcribed a second time with
+            per-word confidence.
+          </p>
+          <p>
+            <strong>The clinic receives a graded chart.</strong> Each line is
+            <span class="green">verified</span> or <span class="amber">to check</span>, and every
+            line short of verified carries the reason in plain words.
+          </p>
+        </div>
+      </div>
+      <p class="foot">
+        A clinic can act on a call where every critical field is verified without ringing anyone
+        back. That is the product.
+      </p>
+    </section>
 
-<section>
-  <h2>What Twiceheard does</h2>
-  <div class="cols">
-    <div>
-      <p><strong>On the call.</strong> The agent collects the reason for the visit, name, date of birth,
-      phone number, medications and allergies, then offers real open times from the clinic's diary and
-      books one.</p>
-      <p><strong>Every value is read back.</strong> The sentence is built by the server, not by the
-      model, so digits are spoken in the groups people use and a date never comes out in the wrong order.</p>
-    </div>
-    <div>
-      <p><strong>After the call.</strong> The chart is rebuilt from the session record rather than from
-      the model's report, and the recording is transcribed a second time with per-word confidence.</p>
-      <p><strong>The clinic receives a graded chart.</strong> Each line is
-      <span class="green">verified</span> or <span class="amber">to check</span>, and every line short
-      of verified carries the reason in plain words.</p>
-    </div>
-  </div>
-  <p class="foot">A clinic can act on a call where every critical field is verified without ringing
-  anyone back. That is the product.</p>
-</section>
+    <section>
+      <h2>How the verification works</h2>
+      <dl class="grid">
+        <dt>Read back</dt>
+        <dd>The server composes the sentence and the agent is told to say it exactly.</dd>
+        <dt>A yes binds</dt>
+        <dd>
+          Only an answer to that readback confirms that value. One yes cannot confirm two values.
+        </dd>
+        <dt>Rebuilt, not reported</dt>
+        <dd>
+          After the call the chart is replayed from the session record. A confirmation the record
+          does not support is downgraded, whatever the model said at the time.
+        </dd>
+        <dt>Heard again</dt>
+        <dd>
+          The stored recording is transcribed a second time, in batch, with the speakers on separate
+          channels and a confidence score on every word.
+        </dd>
+        <dt>Green means both</dt>
+        <dd>
+          A field is verified only when the conversation and the recording agree. Anything else is
+          handed to the desk with the reason.
+        </dd>
+      </dl>
+      <p class="foot">
+        The rules are enforced in code and each one is pinned by a test that fails without it.
+      </p>
+    </section>
 
-<section>
-  <h2>How the verification works</h2>
-  <dl class="grid">
-    <dt>Read back</dt>
-    <dd>The server composes the sentence and the agent is told to say it exactly.</dd>
-    <dt>A yes binds</dt>
-    <dd>Only an answer to that readback confirms that value. One yes cannot confirm two values.</dd>
-    <dt>Rebuilt, not reported</dt>
-    <dd>After the call the chart is replayed from the session record. A confirmation the record does not
-    support is downgraded, whatever the model said at the time.</dd>
-    <dt>Heard again</dt>
-    <dd>The stored recording is transcribed a second time, in batch, with the speakers on separate
-    channels and a confidence score on every word.</dd>
-    <dt>Green means both</dt>
-    <dd>A field is verified only when the conversation and the recording agree. Anything else is handed
-    to the desk with the reason.</dd>
-  </dl>
-  <p class="foot">The rules are enforced in code and each one is pinned by a test that fails without it.</p>
-</section>
+    <section>
+      <h2>Built on</h2>
+      <div class="cols">
+        <div>
+          <p>
+            <strong>AssemblyAI Voice Agent API.</strong> The live call: streaming speech, turn
+            detection, LLM routing, voice output and JSON schema tool calling. A stored agent
+            answers the phone line; a browser call runs the same prompt and the same tools inline.
+          </p>
+          <p>
+            <strong>AssemblyAI Universal-3.5 Pro.</strong> The second hearing. Pre-recorded,
+            multichannel, per-word confidence, transcript deleted as soon as it has been scored.
+          </p>
+        </div>
+        <div>
+          <p>
+            <strong>The rest.</strong> Next.js on Vercel, pinned next to the voice platform. Upstash
+            Redis for intakes, slot claims and call records. RxNorm for medication names. Twilio SIP
+            for the phone line.
+          </p>
+          <p>
+            <strong>Nothing clinical is left to the model.</strong> Every tool argument is validated
+            on the server, a booking needs three confirmed fields, and an emergency is handed to a
+            person.
+          </p>
+        </div>
+      </div>
+      <p class="foot">
+        One clinic, defined in code, with fictional patients. No real patient data has touched it.
+      </p>
+    </section>
 
-<section>
-  <h2>Built on</h2>
-  <div class="cols">
-    <div>
-      <p><strong>AssemblyAI Voice Agent API.</strong> The live call: streaming speech, turn detection,
-      LLM routing, voice output and JSON schema tool calling. A stored agent answers the phone line; a
-      browser call runs the same prompt and the same tools inline.</p>
-      <p><strong>AssemblyAI Universal-3.5 Pro.</strong> The second hearing. Pre-recorded, multichannel,
-      per-word confidence, transcript deleted as soon as it has been scored.</p>
-    </div>
-    <div>
-      <p><strong>The rest.</strong> Next.js on Vercel, pinned next to the voice platform. Upstash Redis
-      for intakes, slot claims and call records. RxNorm for medication names. Twilio SIP for the phone
-      line.</p>
-      <p><strong>Nothing clinical is left to the model.</strong> Every tool argument is validated on the
-      server, a booking needs three confirmed fields, and an emergency is handed to a person.</p>
-    </div>
-  </div>
-  <p class="foot">One clinic, defined in code, with fictional patients. No real patient data has touched it.</p>
-</section>
+    <section>
+      <h2>What was measured</h2>
+      <table>
+        <tr>
+          <th>Test</th>
+          <th>Result</th>
+        </tr>
+        <tr>
+          <td>Unit tests, with 100% statements, branches, functions and lines enforced</td>
+          <td>456 pass</td>
+        </tr>
+        <tr>
+          <td>Scripted evaluation cases across grading, the recording, confidence and readback</td>
+          <td>26 pass</td>
+        </tr>
+        <tr>
+          <td>Browser tests, including a whole call with a synthetic microphone</td>
+          <td>27 pass</td>
+        </tr>
+        <tr>
+          <td>Median gap between the caller finishing and the agent speaking, on a live call</td>
+          <td>3.4 s</td>
+        </tr>
+        <tr>
+          <td>This application's own tool handlers, median, in that gap</td>
+          <td>20 ms</td>
+        </tr>
+        <tr>
+          <td>Two callers racing for the same appointment slot, in production</td>
+          <td>one booking stood</td>
+        </tr>
+      </table>
+      <p style="margin-top: 4mm">
+        The latency is the platform's turn, not this application's work, and it is slower than the
+        paid products in this market. It is listed here because it is true.
+      </p>
+      <p class="foot">
+        Continuous integration runs the same gate on every push, plus a secret scan over the full
+        history and CodeQL.
+      </p>
+    </section>
 
-<section>
-  <h2>What was measured</h2>
-  <table>
-    <tr><th>Test</th><th>Result</th></tr>
-    <tr><td>Unit tests, with 100% statements, branches, functions and lines enforced</td><td>456 pass</td></tr>
-    <tr><td>Scripted evaluation cases across grading, the recording, confidence and readback</td><td>26 pass</td></tr>
-    <tr><td>Browser tests, including a whole call with a synthetic microphone</td><td>27 pass</td></tr>
-    <tr><td>Median gap between the caller finishing and the agent speaking, on a live call</td><td>3.4 s</td></tr>
-    <tr><td>This application's own tool handlers, median, in that gap</td><td>20 ms</td></tr>
-    <tr><td>Two callers racing for the same appointment slot, in production</td><td>one booking stood</td></tr>
-  </table>
-  <p style="margin-top:4mm">The latency is the platform's turn, not this application's work, and it is
-  slower than the paid products in this market. It is listed here because it is true.</p>
-  <p class="foot">Continuous integration runs the same gate on every push, plus a secret scan over the
-  full history and CodeQL.</p>
-</section>
+    <section>
+      <h2>Market scope</h2>
+      <p class="lede">The addressable unit is one outpatient practice phone line.</p>
+      <table>
+        <tr>
+          <th>Counted</th>
+          <th>Figure</th>
+          <th>Source and date</th>
+        </tr>
+        <tr>
+          <td>
+            Private hospitals empanelled under Ayushman Bharat, all running outpatient departments
+          </td>
+          <td>16,746</td>
+          <td>IBEF, 28 February 2026</td>
+        </tr>
+        <tr>
+          <td>Public hospitals empanelled under the same scheme</td>
+          <td>19,483</td>
+          <td>IBEF, 28 February 2026</td>
+        </tr>
+        <tr>
+          <td>Registered allopathic doctors in India</td>
+          <td>1,388,185</td>
+          <td>IBEF, March 2026</td>
+        </tr>
+        <tr>
+          <td>India hospital market</td>
+          <td>US$135.3 bn in 2026, US$202.5 bn by 2030</td>
+          <td>IBEF</td>
+        </tr>
+      </table>
+      <div class="rule"></div>
+      <p>
+        <strong>Serviceable market, on the counted base.</strong> The 16,746 empanelled private
+        hospitals are a register, not an estimate. One line each at the intended price of Rs 6,000 a
+        month is <strong>US$13.7M a year</strong>.
+      </p>
+      <p>
+        <strong>We do not publish a total addressable market.</strong> Standalone clinics are the
+        larger part of Indian outpatient care and no official register we could find counts them.
+        Deriving a number from the doctor count would need two ratios we cannot source, so the
+        figure is left out rather than invented.
+      </p>
+      <p class="foot">
+        Converted at Rs 88 to the US dollar. The price is our intention and has never been charged
+        to anyone; the base it multiplies is counted.
+      </p>
+    </section>
 
-<section>
-  <h2>Market scope</h2>
-  <p class="lede">The addressable unit is one outpatient practice phone line.</p>
-  <table>
-    <tr><th>Counted</th><th>Figure</th><th>Source and date</th></tr>
-    <tr><td>Private hospitals empanelled under Ayushman Bharat, all running outpatient departments</td>
-      <td>16,746</td><td>IBEF, 28 February 2026</td></tr>
-    <tr><td>Public hospitals empanelled under the same scheme</td><td>19,483</td><td>IBEF, 28 February 2026</td></tr>
-    <tr><td>Registered allopathic doctors in India</td><td>1,388,185</td><td>IBEF, March 2026</td></tr>
-    <tr><td>India hospital market</td><td>US$135.3 bn in 2026, US$202.5 bn by 2030</td><td>IBEF</td></tr>
-  </table>
-  <div class="rule"></div>
-  <p><strong>Serviceable market, on the counted base.</strong> The 16,746 empanelled private hospitals
-  are a register, not an estimate. One line each at the intended price of Rs 6,000 a month is
-  <strong>US$13.7M a year</strong>.</p>
-  <p><strong>We do not publish a total addressable market.</strong> Standalone clinics are the larger
-  part of Indian outpatient care and no official register we could find counts them. Deriving a number
-  from the doctor count would need two ratios we cannot source, so the figure is left out rather than
-  invented.</p>
-  <p class="foot">Converted at Rs 88 to the US dollar. The price is our intention and has never been
-  charged to anyone; the base it multiplies is counted.</p>
-</section>
+    <section>
+      <h2>Revenue</h2>
+      <div class="cols">
+        <div>
+          <p>
+            <strong>Subscription per clinic line.</strong> Rs 6,000 a month including 500 answered
+            minutes, then Rs 4 a minute. Intended pricing, not tested on a buyer.
+          </p>
+          <p>
+            <strong>Per verified chart.</strong> For clinics that would rather pay per outcome than
+            per month, priced on charts where every critical field came out verified.
+          </p>
+        </div>
+        <div>
+          <p>
+            <strong>Where it grows.</strong> Reminders and recalls on the same line. Multi-clinic
+            groups, where the desk view becomes the product. An audit export for insurers and
+            accreditation, which is what the graded chart already is.
+          </p>
+          <p>
+            <strong>What it costs to serve.</strong> Platform minutes and one second transcription
+            per call. The margin is set by call length, so a shorter, better intake is worth more
+            than a longer one.
+          </p>
+        </div>
+      </div>
+      <p class="foot">Not yet charged to anyone. No clinic is using this with real patients.</p>
+    </section>
 
-<section>
-  <h2>Revenue</h2>
-  <div class="cols">
-    <div>
-      <p><strong>Subscription per clinic line.</strong> Rs 6,000 a month including 500 answered minutes,
-      then Rs 4 a minute. Intended pricing, not tested on a buyer.</p>
-      <p><strong>Per verified chart.</strong> For clinics that would rather pay per outcome than per
-      month, priced on charts where every critical field came out verified.</p>
-    </div>
-    <div>
-      <p><strong>Where it grows.</strong> Reminders and recalls on the same line. Multi-clinic groups,
-      where the desk view becomes the product. An audit export for insurers and accreditation, which is
-      what the graded chart already is.</p>
-      <p><strong>What it costs to serve.</strong> Platform minutes and one second transcription per call.
-      The margin is set by call length, so a shorter, better intake is worth more than a longer one.</p>
-    </div>
-  </div>
-  <p class="foot">Not yet charged to anyone. No clinic is using this with real patients.</p>
-</section>
+    <section>
+      <h2>Competitors, and what is different here</h2>
+      <table>
+        <tr>
+          <th>Who</th>
+          <th>What their own site says they do</th>
+        </tr>
+        <tr>
+          <td>Assort Health</td>
+          <td>
+            Voice agents across the care journey for US providers, at real scale: 250M+ patient
+            interactions, 89% reduction in hold times. Confirms the action it is about to take, for
+            example "can I confirm you for Thursday at 9:30".
+          </td>
+        </tr>
+        <tr>
+          <td>Infinitus</td>
+          <td>
+            Inbound and outbound healthcare calls for pharma, payors and providers. Enforces
+            verbatim language where required, with a clinical team evaluating agents before, during
+            and after calls.
+          </td>
+        </tr>
+        <tr>
+          <td>Hyro</td>
+          <td>AI agents for healthcare call centres, scheduling and patient access.</td>
+        </tr>
+        <tr>
+          <td>Building it yourself</td>
+          <td>
+            A voice API and a prompt. Fastest to start, and the artefact at the end is still the
+            model's own account of the call.
+          </td>
+        </tr>
+      </table>
+      <div class="rule"></div>
+      <p>
+        <strong>The unique selling proposition.</strong> These are real companies with real
+        deployments, ahead of this on scale, integrations and latency. Reading their public material
+        in September 2026, we did not find one that hands the clinic a per field verdict drawn from
+        a second decode of the same call, with the disagreements named. That artefact is what
+        Twiceheard produces, and it is the part a clinic can be held to.
+      </p>
+      <p class="foot">
+        Descriptions above are quoted or paraphrased from each company's own public site, read in
+        September 2026. The claim about what we did not find is a claim about our reading, not about
+        what those products do internally.
+      </p>
+    </section>
 
-<section>
-  <h2>Competitors, and what is different here</h2>
-  <table>
-    <tr><th>Who</th><th>What their own site says they do</th></tr>
-    <tr><td>Assort Health</td><td>Voice agents across the care journey for US providers, at real scale:
-      250M+ patient interactions, 89% reduction in hold times. Confirms the action it is about to take,
-      for example "can I confirm you for Thursday at 9:30".</td></tr>
-    <tr><td>Infinitus</td><td>Inbound and outbound healthcare calls for pharma, payors and providers.
-      Enforces verbatim language where required, with a clinical team evaluating agents before, during
-      and after calls.</td></tr>
-    <tr><td>Hyro</td><td>AI agents for healthcare call centres, scheduling and patient access.</td></tr>
-    <tr><td>Building it yourself</td><td>A voice API and a prompt. Fastest to start, and the artefact at
-      the end is still the model's own account of the call.</td></tr>
-  </table>
-  <div class="rule"></div>
-  <p><strong>The unique selling proposition.</strong> These are real companies with real deployments,
-  ahead of this on scale, integrations and latency. Reading their public material in September 2026, we
-  did not find one that hands the clinic a per field verdict drawn from a second decode of the same call,
-  with the disagreements named. That artefact is what Twiceheard produces, and it is the part a clinic can
-  be held to.</p>
-  <p class="foot">Descriptions above are quoted or paraphrased from each company's own public site,
-  read in September 2026. The claim about what we did not find is a claim about our reading, not about
-  what those products do internally.</p>
-</section>
+    <section>
+      <h2>Future prospects</h2>
+      <div class="cols">
+        <div>
+          <p>
+            <strong>Next.</strong> Hindi and Hinglish replies, not only Hindi understanding. Writing
+            the graded chart into the clinic's own record system. A desk view across several
+            clinics.
+          </p>
+          <p>
+            <strong>Scale.</strong> The verification is per call and holds no state between calls,
+            so it scales with the voice platform underneath it. The cost per call is one extra
+            transcription.
+          </p>
+        </div>
+        <div>
+          <p>
+            <strong>Beyond intake.</strong> Where we would take it next: pathology callbacks,
+            discharge instructions, pharmacy orders. Anywhere a spoken value has to be right. None
+            of that is built.
+          </p>
+          <p>
+            <strong>Why it holds.</strong> Models will keep getting better at hearing. None of that
+            removes the need to prove, afterwards, that what was written down is what the person
+            said.
+          </p>
+        </div>
+      </div>
+      <p class="foot">
+        The verification layer is the durable part. The agent underneath it is replaceable.
+      </p>
+    </section>
 
-<section>
-  <h2>Future prospects</h2>
-  <div class="cols">
-    <div>
-      <p><strong>Next.</strong> Hindi and Hinglish replies, not only Hindi understanding. Writing the
-      graded chart into the clinic's own record system. A desk view across several clinics.</p>
-      <p><strong>Scale.</strong> The verification is per call and holds no state between calls, so it
-      scales with the voice platform underneath it. The cost per call is one extra transcription.</p>
-    </div>
-    <div>
-      <p><strong>Beyond intake.</strong> Where we would take it next: pathology callbacks, discharge
-      instructions, pharmacy orders. Anywhere a spoken value has to be right. None of that is built.</p>
-      <p><strong>Why it holds.</strong> Models will keep getting better at hearing. None of that removes
-      the need to prove, afterwards, that what was written down is what the person said.</p>
-    </div>
-  </div>
-  <p class="foot">The verification layer is the durable part. The agent underneath it is replaceable.</p>
-</section>
-
-<section>
-  <h2>Where it honestly stands</h2>
-  <ul>
-    <li>The phone line, the browser call, the graded chart and the desk all work, in production, today.</li>
-    <li>The demo deployment sends no text messages. The number a caller gives is never verified as theirs,
-      so a public line that texts it is a way to text strangers at the operator's expense.</li>
-    <li>The median caller gap is 3.4 s. The market sits between 1.7 s and 2.5 s. Almost all of ours is the
-      platform's turn, and it is the main thing still wrong.</li>
-    <li>One clinic, defined in code. There is no screen for adding another.</li>
-    <li>No grievance contact is published, so the deployment is not lawful for live patient calls in India
-      until a clinic publishes its own.</li>
-  </ul>
-  <div class="rule"></div>
-  <p>Every claim in this deck is checkable against the repository, and the ones that were not have been
-  removed from it.</p>
-  <p class="foot">twiceheard.vercel.app &nbsp;&middot;&nbsp; github.com/Bisman-Singh/twiceheard</p>
-</section>
-
-</body>
+    <section>
+      <h2>Where it honestly stands</h2>
+      <ul>
+        <li>
+          The phone line, the browser call, the graded chart and the desk all work, in production,
+          today.
+        </li>
+        <li>
+          The demo deployment sends no text messages. The number a caller gives is never verified as
+          theirs, so a public line that texts it is a way to text strangers at the operator's
+          expense.
+        </li>
+        <li>
+          The median caller gap is 3.4 s. The market sits between 1.7 s and 2.5 s. Almost all of
+          ours is the platform's turn, and it is the main thing still wrong.
+        </li>
+        <li>One clinic, defined in code. There is no screen for adding another.</li>
+        <li>
+          No grievance contact is published, so the deployment is not lawful for live patient calls
+          in India until a clinic publishes its own.
+        </li>
+      </ul>
+      <div class="rule"></div>
+      <p>
+        Every claim in this deck is checkable against the repository, and the ones that were not
+        have been removed from it.
+      </p>
+      <p class="foot">
+        twiceheard.vercel.app &nbsp;&middot;&nbsp; github.com/Bisman-Singh/twiceheard
+      </p>
+    </section>
+  </body>
 </html>
