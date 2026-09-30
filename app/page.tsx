@@ -1,3 +1,11 @@
+import Link from "next/link";
+
+/** The two things a first-time visitor can do, offered before any explanation. */
+const ENTRANCES = [
+  { href: "/call", label: "Call the demo clinic" },
+  { href: "/desk", label: "See a finished chart" },
+] as const;
+
 const STEPS = [
   {
     title: "The caller talks",
@@ -45,10 +53,8 @@ const GRADES = [
 export default function Home() {
   return (
     <article className="space-y-12">
+      {/* The wordmark is in the nav on every page, so the page opens on the claim itself. */}
       <header className="space-y-4">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--accent)]">
-          Twiceheard
-        </p>
         <h1 className="text-4xl font-bold leading-tight">
           Clinic intake by phone, with nothing on the chart you cannot check.
         </h1>
@@ -57,6 +63,19 @@ export default function Home() {
           visit, and books the appointment. Every critical detail is confirmed out loud and then
           verified against the recording, so the front desk knows which fields to trust.
         </p>
+        {/* Two ways in, directly under the standfirst. The box rule is the button;
+            there is no fill and no icon, the same way the desk controls are drawn. */}
+        <div className="flex flex-wrap gap-3 pt-1">
+          {ENTRANCES.map((entrance) => (
+            <Link
+              key={entrance.href}
+              href={entrance.href}
+              className="border border-[var(--text)] px-4 py-3 font-semibold text-[var(--text)] hover:underline"
+            >
+              {entrance.label}
+            </Link>
+          ))}
+        </div>
       </header>
 
       <section aria-labelledby="how" className="space-y-4">
