@@ -1,27 +1,21 @@
 #!/bin/bash
-# Assembles the demonstration video from two recorded calls.
+# Assembles the demonstration video from one whole call.
 #
 # Inputs, all in the directory given as the first argument:
-#   call-a-clean.webm / call-a-audio.ogg          a call where every line comes out verified
-#   call-b-unanswered.webm / call-b-audio.ogg     a call where the caller never answers one readback
-#   line-a.wav .. line-d.wav                      narration, one per beat
+#   call.webm / call-audio.ogg    one recorded call, and its audio from the platform
+#   line-*.wav                    narration, one clip per thing being explained
 #
-# Why two calls. One call can only show one outcome, and the product's claim needs both:
-# that a good call comes out clean and books the appointment, and that a call where nobody
-# confirmed a value says so rather than guessing. Showing only the second makes the product
-# look like it flags everything; showing only the first proves nothing.
+# The whole call is shown, start to finish, because the submission is judged on showing
+# the product working and a cut conversation shows less than an uncut one. What is cut is
+# the stretch after the call ends while the recording is heard again, which is honest on
+# screen and unwatchable on video.
 #
-# The flagged call is deliberately one where the caller says nothing at all when the
-# medication is read back. An earlier cut used a caller who answered "That's the only one I
-# take", which reads as agreement to anyone watching and made the flag look pedantic. An
-# example a viewer can argue with is worse than no example.
-#
-# Each call is cut to its two useful stretches: the conversation, and the chart. The dead
-# wait between them, while the recording is heard a second time, is honest on screen and
-# unwatchable on video.
-#
-# The timings belong to these two recordings. Re-record and they move: find the chart with
-#   ffmpeg -i call-a-clean.webm -vf "select='gt(scene,0.05)',showinfo" -an -f null -
+# The narration never talks over anyone. Each line is placed in a measured gap in the
+# call's own audio and is shorter than that gap. Find the gaps with
+#   ffmpeg -i call-audio.ogg -af silencedetect=noise=-36dB:d=1.2 -f null -
+# and the chart with
+#   ffmpeg -i call.webm -vf "select='gt(scene,0.05)',showinfo" -an -f null -
+# Both were measured for this recording; re-record and they all move.
 #
 # Usage: scripts/demo-video.sh [dir] [out]
 set -euo pipefail
@@ -29,79 +23,67 @@ set -euo pipefail
 DIR="${1:-demo}"
 OUT="${2:-$DIR/twiceheard-demo.mp4}"
 
-for f in "$DIR"/call-{a-clean,b-unanswered}.webm "$DIR"/call-{a,b}-audio.ogg "$DIR"/line-{a,b,c,d}.wav; do
+for f in "$DIR"/call.webm "$DIR"/call-audio.ogg \
+         "$DIR"/line-{open,readback,slip,digits,drug,allergies,slots,second,chart,close}.wav; do
   [ -f "$f" ] || { echo "missing: $f" >&2; exit 1; }
 done
 
 # The opening frame is held while the first line is spoken, so the call begins in silence.
-LEAD_IN=14
-# Where the call's own audio starts inside each recording.
+LEAD_IN=15
+# Where the call's own audio starts inside the recording.
 CALL_STARTS_AT=4
+# The call, from the page at rest to a few seconds after it ends.
+CALL_TO=203
+# The chart, after the wait while the recording is heard a second time.
+CHART_FROM=222.3
+CHART_TO=250.3
 
-# Call A: the end of the conversation, where the time is chosen and the appointment is
-# booked, then the chart it produced. The end and not the beginning, because the line
-# spoken over the chart says the call is over, and cutting away from the middle of a
-# conversation to say that is both jarring and untrue.
-A_TALK_FROM=142
-A_TALK_TO=199
-A_CHART_FROM=222.3
-A_CHART_TO=238.3
-
-# Call B: the caller giving their medication, the agent reading it back, and the silence
-# where the answer should be. It starts on the caller's own words rather than in the gap
-# before them, or the segment opens on several seconds of nothing.
-B_TALK_FROM=111
-B_TALK_TO=134
-B_CHART_FROM=227.8
-B_CHART_TO=241.8
-
-# Parenthesised on purpose. Without the brackets `ms "$LEAD_IN + $CALL_STARTS_AT"`
-# evaluates as 11 + 4*1000 and lays the whole call underneath the opening narration,
-# which is the overlap this edit exists to avoid and which no amount of reading the
-# command catches. Listen to the first fifteen seconds of anything this produces.
+# Parenthesised on purpose. Without the brackets `ms "$LEAD_IN + $CALL_STARTS_AT"` evaluates
+# as 15 + 4*1000 and lays the whole call underneath the opening narration, which is the
+# overlap this edit exists to avoid and which reading the command does not catch. Listen to
+# the first twenty seconds of anything this produces.
 ms() { python3 -c "print(int(($1) * 1000))"; }
 
-A_TALK_LEN=$(python3 -c "print($A_TALK_TO - $A_TALK_FROM)")
-A_CHART_LEN=$(python3 -c "print($A_CHART_TO - $A_CHART_FROM)")
-B_TALK_LEN=$(python3 -c "print($B_TALK_TO - $B_TALK_FROM)")
+CHART_LEN=$(python3 -c "print($CHART_TO - $CHART_FROM)")
+CHART_AT=$(python3 -c "print($LEAD_IN + $CALL_TO)")
 
-# Where each piece lands on the finished timeline.
-S1_AT=$LEAD_IN
-S2_AT=$(python3 -c "print($LEAD_IN + $A_TALK_LEN)")
-S3_AT=$(python3 -c "print($S2_AT + $A_CHART_LEN)")
-S4_AT=$(python3 -c "print($S3_AT + $B_TALK_LEN)")
+# A narration line goes at a point in the call's own audio, so it is placed relative to that.
+at() { ms "$LEAD_IN + $CALL_STARTS_AT + $1"; }
 
-# In milliseconds. ffmpeg accepts a seconds suffix on adelay in principle and ignores it in
-# practice, which put a whole call underneath the opening narration and was only caught by
-# listening. Milliseconds are what this filter honours.
-# One line per beat: the claim, the clean chart, the second call, the flagged line.
-OPENING_MS=800
-CLEAN_CHART_MS=$(ms "$S2_AT + 1.2")
-SECOND_CALL_MS=$(ms "$S2_AT + 9.8")
-FLAGGED_CHART_MS=$(ms "$S4_AT + 1.2")
-A_AUDIO_MS=$(ms "$LEAD_IN")
-B_AUDIO_MS=$(ms "$S3_AT")
+OPEN_MS=800
+READBACK_MS=$(at 30.1)      # after the first readback, before the caller answers
+SLIP_MS=$(at 42.4)          # while the agent asks for the date of birth
+DIGITS_MS=$(at 71.6)        # while the agent asks for a phone number
+DRUG_MS=$(at 102.2)         # while the agent asks about medications
+ALLERGIES_MS=$(at 130.3)    # while the agent asks about allergies
+SLOTS_MS=$(at 145.9)        # after the allergies readback
+SECOND_MS=$(ms "$CHART_AT - 6")     # as the call ends and the page says it is listening again
+CHART_MS=$(ms "$CHART_AT + 2.2")    # as the chart arrives
+CLOSE_MS=$(ms "$CHART_AT + 12")     # on the one rule the whole thing rests on
 
 ffmpeg -hide_banner -loglevel error -y \
-  -i "$DIR/call-a-clean.webm" -i "$DIR/call-b-unanswered.webm" \
-  -i "$DIR/call-a-audio.ogg" -i "$DIR/call-b-audio.ogg" \
-  -i "$DIR/line-a.wav" -i "$DIR/line-b.wav" -i "$DIR/line-c.wav" -i "$DIR/line-d.wav" \
+  -i "$DIR/call.webm" -i "$DIR/call-audio.ogg" \
+  -i "$DIR/line-open.wav" -i "$DIR/line-readback.wav" -i "$DIR/line-slip.wav" \
+  -i "$DIR/line-digits.wav" -i "$DIR/line-drug.wav" -i "$DIR/line-allergies.wav" \
+  -i "$DIR/line-slots.wav" -i "$DIR/line-second.wav" -i "$DIR/line-chart.wav" \
+  -i "$DIR/line-close.wav" \
   -filter_complex "
-    [0:v]trim=${A_TALK_FROM}:${A_TALK_TO},setpts=PTS-STARTPTS,
+    [0:v]trim=0:${CALL_TO},setpts=PTS-STARTPTS,
          tpad=start_mode=clone:start_duration=${LEAD_IN}[v1];
-    [0:v]trim=${A_CHART_FROM}:${A_CHART_TO},setpts=PTS-STARTPTS[v2];
-    [1:v]trim=${B_TALK_FROM}:${B_TALK_TO},setpts=PTS-STARTPTS[v3];
-    [1:v]trim=${B_CHART_FROM}:${B_CHART_TO},setpts=PTS-STARTPTS[v4];
-    [v1][v2][v3][v4]concat=n=4:v=1:a=0[vout];
-    [2:a]atrim=$(python3 -c "print($A_TALK_FROM - $CALL_STARTS_AT)"):$(python3 -c "print($A_TALK_TO - $CALL_STARTS_AT)"),asetpts=PTS-STARTPTS,
-         adelay=${A_AUDIO_MS}|${A_AUDIO_MS},volume=0.95[beda];
-    [3:a]atrim=$(python3 -c "print($B_TALK_FROM - $CALL_STARTS_AT)"):$(python3 -c "print($B_TALK_TO - $CALL_STARTS_AT)"),
-         asetpts=PTS-STARTPTS,adelay=${B_AUDIO_MS}|${B_AUDIO_MS},volume=0.95[bedb];
-    [4:a]adelay=${OPENING_MS}|${OPENING_MS}[la];
-    [5:a]adelay=${CLEAN_CHART_MS}|${CLEAN_CHART_MS}[lb];
-    [6:a]adelay=${SECOND_CALL_MS}|${SECOND_CALL_MS}[lc];
-    [7:a]adelay=${FLAGGED_CHART_MS}|${FLAGGED_CHART_MS}[ld];
-    [beda][bedb][la][lb][lc][ld]amix=inputs=6:normalize=0:duration=longest,
+    [0:v]trim=${CHART_FROM}:${CHART_TO},setpts=PTS-STARTPTS[v2];
+    [v1][v2]concat=n=2:v=1:a=0[vout];
+    [1:a]adelay=$(ms "$LEAD_IN + $CALL_STARTS_AT")|$(ms "$LEAD_IN + $CALL_STARTS_AT"),volume=0.95[bed];
+    [2:a]adelay=${OPEN_MS}|${OPEN_MS}[l1];
+    [3:a]adelay=${READBACK_MS}|${READBACK_MS}[l2];
+    [4:a]adelay=${SLIP_MS}|${SLIP_MS}[l3];
+    [5:a]adelay=${DIGITS_MS}|${DIGITS_MS}[l4];
+    [6:a]adelay=${DRUG_MS}|${DRUG_MS}[l5];
+    [7:a]adelay=${ALLERGIES_MS}|${ALLERGIES_MS}[l6];
+    [8:a]adelay=${SLOTS_MS}|${SLOTS_MS}[l7];
+    [9:a]adelay=${SECOND_MS}|${SECOND_MS}[l8];
+    [10:a]adelay=${CHART_MS}|${CHART_MS}[l9];
+    [11:a]adelay=${CLOSE_MS}|${CLOSE_MS}[l10];
+    [bed][l1][l2][l3][l4][l5][l6][l7][l8][l9][l10]amix=inputs=11:normalize=0:duration=longest,
          alimiter=limit=0.95[aout]
   " \
   -map "[vout]" -map "[aout]" \
