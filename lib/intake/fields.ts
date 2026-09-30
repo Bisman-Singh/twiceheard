@@ -286,8 +286,17 @@ function words(text: string): string[] {
   );
 }
 
-function listNouns(spec: FieldSpec): ReadonlySet<string> {
+/**
+ * The words that name one list field, so a denial can be tied to the question it
+ * answered. The second hearing needs the same binding the live side has: without it
+ * a caller's "no" to "have you been here before?" reads as a denial of everything.
+ */
+export function fieldNouns(spec: FieldSpec): ReadonlySet<string> {
   return spec.id === "allergies" ? ALLERGY_NOUNS : MEDICATION_NOUNS;
+}
+
+function listNouns(spec: FieldSpec): ReadonlySet<string> {
+  return fieldNouns(spec);
 }
 
 /**

@@ -77,6 +77,18 @@ describe("gradeField", () => {
     expect(gradeField(record, { hearing: "agrees", minConfidence: null }).grade).toBe("amber");
   });
 
+  // "The recording suggests a different value" would be false here: the drug was heard,
+  // it is the number beside it that nobody can hear said. The clinic is told which.
+  it("says when it is the dose that is missing, not the drug", () => {
+    const record = fullyConfirmed().medications;
+    expect(
+      gradeField(record, { hearing: "differs", minConfidence: 0.9, doseUnheard: true }),
+    ).toMatchObject({
+      grade: "amber",
+      reasons: ["The drug was heard, but not the dose written beside it."],
+    });
+  });
+
   it("never lets verification improve a field that failed live", () => {
     let chart = emptyChart();
     for (const value of ["9876543210", "9876543211", "9876543212", "9876543213"]) {

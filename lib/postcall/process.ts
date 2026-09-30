@@ -185,7 +185,10 @@ async function secondHearing(
     // Nothing on the caller's channel is not a second hearing. Saying it was one
     // would let every field be graded against silence.
     if (heard.caller.length === 0) return { verifications: {}, hearing: "unavailable" as const };
-    return { verifications: verifyChart(chart, heard.caller), hearing: "verified" as const };
+    return {
+      verifications: verifyChart(chart, heard.caller, heard.agent),
+      hearing: "verified" as const,
+    };
   } catch {
     return { verifications: {}, hearing: "unavailable" as const };
   }
@@ -194,6 +197,7 @@ async function secondHearing(
 export function verifyChart(
   chart: Chart,
   caller: readonly Utterance[],
+  agent: readonly Utterance[] = [],
 ): Partial<Record<FieldId, Verification>> {
   const result: Partial<Record<FieldId, Verification>> = {};
   for (const id of FIELD_IDS) {
@@ -204,7 +208,7 @@ export function verifyChart(
     // it out of the result let the grader fall back to the live chart: the reason
     // for the visit came out green on every ordinary call, on the model's word
     // alone, with no readback, no yes and no second hearing behind it.
-    result[id] = verifyValue(FIELDS[id], value, caller);
+    result[id] = verifyValue(FIELDS[id], value, caller, agent);
   }
   return result;
 }

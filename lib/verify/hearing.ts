@@ -1,4 +1,4 @@
-import type { FieldSpec, FieldValue } from "@/lib/intake/fields";
+import { FIELDS, fieldNouns, type FieldSpec, type FieldValue } from "@/lib/intake/fields";
 import type { Verification } from "@/lib/intake/grade";
 
 /**
@@ -211,12 +211,20 @@ const NUMBER_FOR_WORD = new Map<string, number>([
   ["oh", 0],
   ["twentieth", 20],
   ["thirtieth", 30],
+  ["hundred", 100],
+  ["thousand", 1000],
 ]);
 const TENS_VALUES = new Set(TENS.map((_word, index) => (index + 2) * 10));
 
 /** "eighty five" is one number, 85, not eighty followed by five. */
 function joinTensAndUnit(tens: number, unit: number): number | null {
   return TENS_VALUES.has(tens) && unit >= 1 && unit <= 9 ? tens + unit : null;
+}
+
+/** "five hundred" is 500. A dose is said in words and written in digits. */
+function joinScale(count: number, scale: number): number | null {
+  const scaled = count * scale;
+  return (scale === 100 || scale === 1000) && count >= 1 && count <= 99 ? scaled : null;
 }
 
 /** "nineteen eighty five" is 1985, and "ninety eight seven" is still two numbers. */
@@ -278,10 +286,12 @@ function fusePairs(
 export function tokens(words: Utterance): Token[] {
   const said = words.flatMap(spell);
   // A number said as a word is kept as the number, so every digit check below sees it.
-  return fusePairs(fusePairs(said, joinTensAndUnit), joinYear).map((item) => ({
-    token: item.value === null ? item.token : String(item.value),
-    confidence: item.confidence,
-  }));
+  return fusePairs(fusePairs(fusePairs(said, joinTensAndUnit), joinScale), joinYear).map(
+    (item) => ({
+      token: item.value === null ? item.token : String(item.value),
+      confidence: item.confidence,
+    }),
+  );
 }
 
 /** A wanted value read the way the recording is, so "Kumar-Sharma" can match what was said. */
@@ -293,6 +303,7 @@ export function verifyValue(
   spec: FieldSpec,
   value: FieldValue,
   caller: readonly Utterance[],
+  agent: readonly Utterance[] = [],
 ): Verification {
   const spoken = caller.map(tokens);
   switch (spec.kind) {
@@ -306,7 +317,7 @@ export function verifyValue(
     case "phone":
       return verifyDigits(String(value), spoken);
     case "list":
-      return verifyList(value as readonly string[], spoken);
+      return verifyList(value as readonly string[], spoken, spec, caller, agent);
     case "text":
       return verifyText(String(value), spoken);
   }
@@ -369,21 +380,44 @@ const TEXT_OVERLAP = 0.6;
  * chart and the field came out green on the model\u0027s word alone, with no
  * readback, no yes and no second hearing behind it.
  */
+/** Every word the caller said in order to rule it out, and how clearly they said it. */
+function ruledOut(spoken: Token[][]): Map<string, Token> {
+  const denied = new Map<string, Token>();
+  for (const utterance of spoken) {
+    const stated = new Set(affirmed(utterance).map((item) => item.token));
+    for (const item of utterance) if (!stated.has(item.token)) denied.set(item.token, item);
+  }
+  return denied;
+}
+
 function verifyText(value: string, spoken: Token[][]): Verification {
   const wanted = tokenise(value)
     .map((item) => item.token)
     .filter((word) => !EMPTY_WORDS.has(word));
   if (wanted.length === 0) return ABSENT;
+  // Only what the caller stated. Without this, "I have no fever but I do have a sore
+  // throat" agreed with a chart line reading "fever and sore throat", because the words
+  // were all present somewhere and nothing looked at the "no" in front of one of them.
   const said = new Map<string, Token>();
   for (const utterance of spoken) {
-    for (const item of utterance) {
+    for (const item of affirmed(utterance)) {
       const held = said.get(item.token);
       if (!held || item.confidence < held.confidence) said.set(item.token, item);
     }
   }
+  const denied = ruledOut(spoken);
   const found = wanted
     .map((word) => said.get(word))
     .filter((item): item is Token => item !== undefined);
+  // The caller said this word to rule it out. A chart that carries it anyway is not
+  // agreed with, however many of the other words line up.
+  const contradicted = wanted
+    .filter((word) => !said.has(word))
+    .map((word) => denied.get(word))
+    .filter((item): item is Token => item !== undefined);
+  if (contradicted.length > 0) {
+    return { hearing: "differs", minConfidence: lowest([...found, ...contradicted]) };
+  }
   if (found.length === 0) return ABSENT;
   return found.length / wanted.length >= TEXT_OVERLAP
     ? { hearing: "agrees", minConfidence: lowest(found) }
@@ -518,43 +552,95 @@ function affirmed(utterance: Token[]): Token[] {
   return stated;
 }
 
+/** When an utterance began, so a denial can be tied to the question before it. */
+function startedAt(utterance: Utterance): number {
+  return utterance[0]?.start ?? 0;
+}
+
 /**
- * An empty list is only agreed to by an utterance that is a denial and nothing
- * else.
+ * An empty list is only agreed to by a denial that answered THIS field's question.
  *
- * Any negative anywhere in the call used to do, scored by the loudest one. The
- * repo's own fixture proves what that was worth: a caller who never mentioned
- * allergies says "No, that\u0027s all. Thank you." at the end of the call, and
- * both "no allergies" and "no medications" came back agreed at 0.99. That is
- * the second hearing agreeing with nothing, on the two chart entries where
- * being wrong is most dangerous.
+ * Two earlier versions were not enough. Any negative anywhere in the call, scored by
+ * the loudest, let a goodbye verify an allergy list. Narrowing it to an utterance made
+ * only of negatives and filler still let a bare "no" through, because nothing told this
+ * function which field it was grading: one caller's "no" to "have you been here before?"
+ * came back agreeing that they take no medication and have no allergy, at 0.99, on the
+ * two entries where being wrong is most dangerous. So a denial now counts only when it
+ * names this field itself, or when the agent's last question before it did. The agent's
+ * side of the recording is on its own channel, and this is what it is for.
  */
-function verifyNone(utterances: Token[][]): Verification {
-  const denials = utterances
-    .filter(
-      (utterance) =>
-        utterance[0] !== undefined &&
-        NEGATIVE.has(utterance[0].token) &&
-        utterance.every(
-          (item) =>
-            NEGATIVE.has(item.token) || DENIAL_FILLER.has(item.token) || LIST_NOUNS.has(item.token),
-        ),
-    )
-    .flatMap((utterance) => utterance.filter((item) => NEGATIVE.has(item.token)));
+function verifyNone(
+  spec: FieldSpec,
+  caller: readonly Utterance[],
+  agent: readonly Utterance[],
+): Verification {
+  const nouns = fieldNouns(spec);
+  // "Drug" and "medicine" belong to both lists, because an allergy is usually to a drug,
+  // so a shared noun alone does not say which question was answered. An allergy word
+  // does: "no drug allergies" is about allergies, and "I take no medicines" is about
+  // medications precisely because no allergy word is in it.
+  const allergyWords = fieldNouns(FIELDS.allergies);
+  const medicationWords = fieldNouns(FIELDS.medications);
+  const namesAllergies = (utterance: Token[]) =>
+    utterance.some((item) => allergyWords.has(item.token) && !medicationWords.has(item.token));
+  const namesMedications = (utterance: Token[]) =>
+    !namesAllergies(utterance) && utterance.some((item) => medicationWords.has(item.token));
+  const namesField = spec.id === "allergies" ? namesAllergies : namesMedications;
+  const namesTheOtherField = spec.id === "allergies" ? namesMedications : namesAllergies;
+  const questions = agent.map((utterance) => ({
+    at: startedAt(utterance),
+    aboutThisField: tokens(utterance).some((item) => nouns.has(item.token)),
+  }));
+  const lastQuestionBefore = (at: number): boolean =>
+    questions.filter((question) => question.at <= at).at(-1)?.aboutThisField === true;
+  // Walked over the caller's own utterances, not the tokenised copy, so each denial
+  // still knows when it was said and therefore what it was answering.
+  const denials = caller.flatMap((words) => {
+    const utterance = tokens(words);
+    const first = utterance[0];
+    const isDenialShaped =
+      first !== undefined &&
+      NEGATIVE.has(first.token) &&
+      utterance.every(
+        (item) =>
+          NEGATIVE.has(item.token) || DENIAL_FILLER.has(item.token) || LIST_NOUNS.has(item.token),
+      );
+    if (!isDenialShaped) return [];
+    // "No allergies" does not deny a medication, whatever was asked.
+    if (namesTheOtherField(utterance)) return [];
+    if (!namesField(utterance) && !lastQuestionBefore(startedAt(words))) return [];
+    return utterance.filter((item) => NEGATIVE.has(item.token));
+  });
   return denials.length > 0
     ? { hearing: "agrees", minConfidence: Math.min(...denials.map((item) => item.confidence)) }
     : ABSENT;
 }
 
 /** Each item's first word, or a clear "no" for an empty list. */
-function verifyList(items: readonly string[], spoken: Token[][]): Verification {
-  if (items.length === 0) return verifyNone(spoken);
+function verifyList(
+  items: readonly string[],
+  spoken: Token[][],
+  spec: FieldSpec,
+  caller: readonly Utterance[],
+  agent: readonly Utterance[],
+): Verification {
+  if (items.length === 0) return verifyNone(spec, caller, agent);
   const keys = items.map((item) => keyWord(item));
   // "I do not take metformin any more" names the drug to deny it, which is not a list.
   const stated = spoken.flatMap(affirmed);
   const hits = keys
     .map((key) => stated.find((item) => item.token === key))
     .filter((item): item is Token => item !== undefined);
-  if (hits.length === keys.length) return { hearing: "agrees", minConfidence: lowest(hits) };
+  // The dose is the part of a medication line that harms someone when it is wrong, and
+  // `keyWord` throws it away. `tokens` has already turned "five hundred" into 500, so the
+  // numbers on the chart have to be numbers the recording also carries.
+  const doses = items.flatMap((item) =>
+    tokenise(item).filter((token) => /^\d+$/.test(token.token)),
+  );
+  const saidDose = (dose: Token) => stated.some((item) => item.token === dose.token);
+  if (hits.length === keys.length) {
+    if (doses.every(saidDose)) return { hearing: "agrees", minConfidence: lowest(hits) };
+    return { hearing: "differs", minConfidence: lowest(hits), doseUnheard: true };
+  }
   return hits.length > 0 ? { hearing: "differs", minConfidence: lowest(hits) } : ABSENT;
 }

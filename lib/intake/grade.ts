@@ -21,6 +21,11 @@ export interface Verification {
   hearing: "agrees" | "differs" | "absent";
   /** Lowest confidence among the words that carried the value; null when nothing matched. */
   minConfidence: number | null;
+  /**
+   * Set when every drug on the line was heard but a dose written on it was not. The
+   * drug name matching is not the dangerous half: a dose nobody can hear said is.
+   */
+  doseUnheard?: boolean;
 }
 
 export interface FieldGrade {
@@ -71,7 +76,14 @@ function liveGrade(record: FieldRecord): { grade: Grade; reasons: string[] } {
 
 function hearingGrade(verification: Verification): { grade: Grade; reasons: string[] } {
   if (verification.hearing === "differs") {
-    return { grade: "amber", reasons: ["The recording suggests a different value."] };
+    return {
+      grade: "amber",
+      reasons: [
+        verification.doseUnheard
+          ? "The drug was heard, but not the dose written beside it."
+          : "The recording suggests a different value.",
+      ],
+    };
   }
   if (verification.hearing === "absent" || verification.minConfidence === null) {
     return { grade: "amber", reasons: ["The value could not be found in the recording."] };

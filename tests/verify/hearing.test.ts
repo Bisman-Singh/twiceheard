@@ -20,6 +20,11 @@ function said(text: string, confidence = 0.99): Utterance {
     .map((word, index) => ({ text: word, confidence, start: index, end: index + 1 }));
 }
 
+/** The agent's side of the recording: what the caller's answer was an answer to. */
+function asked(text: string, confidence = 0.99): Utterance {
+  return said(text, confidence);
+}
+
 function withLowWord(text: string, low: string, confidence: number): Utterance {
   return said(text).map((word) =>
     word.text.replace(/[^\w]/g, "") === low ? { ...word, confidence } : word,
@@ -119,9 +124,17 @@ describe("verifyValue", () => {
 
   it("checks every listed item, and hears none as a clear no", () => {
     const meds = [said("I take Metformin and atorvastatin every day", 0.9)];
+    // Both drugs were said and neither dose was. The drug names matching is the easy
+    // half; a dose written on the chart that nobody can hear said is the half that
+    // harms someone, so the line is not agreed with and the reason says which part.
     expect(
       verifyValue(FIELDS.medications, ["Metformin 500 mg twice daily", "atorvastatin"], meds),
     ).toEqual({
+      hearing: "differs",
+      minConfidence: 0.9,
+      doseUnheard: true,
+    });
+    expect(verifyValue(FIELDS.medications, ["Metformin", "atorvastatin"], meds)).toEqual({
       hearing: "agrees",
       minConfidence: 0.9,
     });
@@ -130,11 +143,63 @@ describe("verifyValue", () => {
       minConfidence: 0.9,
     });
     expect(verifyValue(FIELDS.allergies, ["penicillin"], meds)?.hearing).toBe("absent");
-    expect(verifyValue(FIELDS.allergies, [], [said("no none at all", 0.7)])).toEqual({
+    expect(
+      verifyValue(FIELDS.allergies, [], [said("no none at all", 0.7)], [asked("any allergies")]),
+    ).toEqual({
       hearing: "agrees",
       minConfidence: 0.7,
     });
     expect(verifyValue(FIELDS.allergies, [], [said("peanuts")])?.hearing).toBe("absent");
+  });
+
+  // A caller says "no" many times in a call and it answers a different question each
+  // time. Graded without the agent's side, one "no" to "have you been here before?"
+  // came back agreeing that the patient takes no medication and has no allergy, at
+  // 0.99, on the two entries this product says are the most dangerous to get wrong.
+  it("will not let a denial verify a list it was not asked about", () => {
+    const call = [said("my name is priya sharma"), said("no"), said("yes that is right")];
+    expect(verifyValue(FIELDS.allergies, [], call)?.hearing).toBe("absent");
+    expect(verifyValue(FIELDS.medications, [], call)?.hearing).toBe("absent");
+
+    const afterTheAllergyQuestion = [asked("do you have any allergies")];
+    expect(verifyValue(FIELDS.allergies, [], call, afterTheAllergyQuestion)?.hearing).toBe(
+      "agrees",
+    );
+    expect(verifyValue(FIELDS.medications, [], call, afterTheAllergyQuestion)?.hearing).toBe(
+      "absent",
+    );
+  });
+
+  // A transcript can carry an utterance with no words in it, and the grader is walked
+  // over every utterance the recording holds, not only the ones that parsed.
+  it("survives an utterance with nothing in it", () => {
+    expect(
+      verifyValue(FIELDS.allergies, [], [[], said("no")], [[], asked("any allergies")]),
+    ).toEqual({ hearing: "agrees", minConfidence: 0.99 });
+  });
+
+  it("does not read a denial of one list as a denial of the other", () => {
+    expect(verifyValue(FIELDS.medications, [], [said("no allergies")])?.hearing).toBe("absent");
+    expect(verifyValue(FIELDS.allergies, [], [said("no medicines")])?.hearing).toBe("absent");
+    // The caller named an allergy. An empty list is not what the recording holds.
+    expect(
+      verifyValue(
+        FIELDS.allergies,
+        [],
+        [said("no i have not"), said("i am allergic to penicillin")],
+      )?.hearing,
+    ).toBe("absent");
+  });
+
+  it("will not agree with free text the caller ruled out", () => {
+    const call = [said("i have no fever but i do have a sore throat for three days")];
+    expect(verifyValue(FIELDS.reason_for_visit, "fever and sore throat for 3 days", call)).toEqual({
+      hearing: "differs",
+      minConfidence: 0.99,
+    });
+    expect(verifyValue(FIELDS.reason_for_visit, "sore throat for 3 days", call)?.hearing).toBe(
+      "agrees",
+    );
   });
 
   it("matches an item with no letters by the item itself", () => {
@@ -176,7 +241,10 @@ describe("tokens, numbers the transcriber wrote as words", () => {
       "1985",
     ]);
     expect(read("the twenty first")).toEqual(["the", "21"]);
-    expect(read("five hundred milligrams")).toEqual(["5", "hundred", "milligrams"]);
+    // A dose is spoken in words and written in digits. Left as "5" and "hundred" the
+    // 500 on the chart was invisible to every check below it.
+    expect(read("five hundred milligrams")).toEqual(["500", "milligrams"]);
+    expect(read("one thousand")).toEqual(["1000"]);
   });
 
   it("joins only what was said as one number", () => {
