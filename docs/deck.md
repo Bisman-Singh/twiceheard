@@ -43,10 +43,10 @@ one that was measured, and the last slide says what is not there.
 
 ## What was measured
 
-- `npm run verify` exits 0. 444 tests, at 100% statements, branches, functions and lines over the
+- `npm run verify` exits 0. 474 tests, at 100% statements, branches, functions and lines over the
   application, components, library, proxy and config.
-- 25 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
-  readback rule and the medication lookup. All 25 pass.
+- 26 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
+  readback rule and the medication lookup. All 26 pass.
 - Whole calls against the live Voice Agent API, driven through the product's own endpoints. The last
   one came out 7 verified, 0 to check, 0 missing, with an appointment booked. On that call the
   median gap between the caller finishing and the agent speaking was 3.37 s, and the product's own
@@ -78,9 +78,10 @@ one that was measured, and the last slide says what is not there.
 
 - A phone call runs the stored agent on the host that holds the number; a browser call runs the same
   prompt and tools inline. Both end at the same handlers and the same chart.
-- No messaging provider, so a booking records the message it would send. One clinic, defined in code.
-  Everyone in it is fictional.
-- No deletion endpoint, no named grievance contact, and no age check, which a real deployment in India
-  would need first.
-- The shared rate limiter fails open by design, and none of the security posture has been exercised
-  against the public internet, because nothing is public.
+- With no messaging provider configured the messenger reports failure rather than success, so a
+  booking never claims a text that nobody sent. One clinic, defined in code. Everyone in it is
+  fictional.
+- A caller can erase their own chart, and that endpoint is built and authorised. There is no named
+  grievance contact and no age check, which a real deployment in India would need first.
+- The shared rate limiter fails open by design, on the view that a clinic line that stops answering is
+  worse than one that is briefly too generous.

@@ -6,8 +6,9 @@ visit, current medications and allergies. It reads every critical value back to 
 it records it. It offers real open appointment times, books one, and hands the clinic a chart where
 every field is graded `verified`, `check` or `missing`.
 
-It is a submission for the AssemblyAI Voice Agent Hackathon. Nothing is deployed. Everything below
-describes what runs locally.
+It is a submission for the AssemblyAI Voice Agent Hackathon. It runs at
+<https://twiceheard.vercel.app>, with a phone line answering a real number. Everything below
+describes how to run the same thing yourself.
 
 ## Every value is heard twice
 
@@ -67,13 +68,15 @@ clinic's code says nothing about another's.
 `lib/server/env.ts` validates the environment once, at first use, and nothing else reads
 `process.env`. Put values in `.env.local`, which is ignored by git. Never commit a value.
 
-| Variable                                                | Required                   | What it is for                                                                                                                         |
-| ------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `ASSEMBLYAI_API_KEY`                                    | yes                        | The Voice Agent API and the transcription API. Server side only.                                                                       |
-| `TWICEHEARD_SECRET`                                     | yes, 32 characters or more | Derives each clinic's tool key and desk code, signs the browser call grant and the desk session, and names the browser that holds one. |
-| `TWICEHEARD_WEBHOOK_SECRET`                             | yes, 32 characters or more | Verifies the HMAC signature on webhook deliveries. Set the same value on the subscription.                                             |
-| `TWICEHEARD_AGENT_ID`                                   | no                         | The stored agent that answers for the demo clinic. Without it, a browser call configures the same agent inline instead.                |
-| `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` | no                         | Shared stores. `KV_REST_API_URL` and `KV_REST_API_TOKEN` are accepted as aliases.                                                      |
+| Variable                                                   | Required                   | What it is for                                                                                                                              |
+| ---------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSEMBLYAI_API_KEY`                                       | yes                        | The Voice Agent API and the transcription API. Server side only.                                                                            |
+| `TWICEHEARD_SECRET`                                        | yes, 32 characters or more | Derives each clinic's tool key and desk code, signs the browser call grant and the desk session, and names the browser that holds one.      |
+| `TWICEHEARD_WEBHOOK_SECRET`                                | yes, 32 characters or more | Verifies the HMAC signature on webhook deliveries. Set the same value on the subscription.                                                  |
+| `TWICEHEARD_AGENT_ID`                                      | no                         | The stored agent that answers for the demo clinic. Without it, a browser call configures the same agent inline instead.                     |
+| `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`    | no                         | Shared stores. `KV_REST_API_URL` and `KV_REST_API_TOKEN` are accepted as aliases.                                                           |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_NUMBER` | all three or none          | Sends the confirmation text over Twilio's Messages API. Without all three the messenger refuses rather than reporting a text it never sent. |
+| `TWICEHEARD_OFFLINE_PLATFORM`                              | no, `1` only               | Runs the whole product with no voice platform, for a demonstration with no network. Refused in a production deployment.                     |
 
 Without Redis the app runs on in-memory stores. That is right for a laptop and wrong for serverless,
 where each instance would keep its own copy.
@@ -95,7 +98,7 @@ handlers do the same work. The wording, the tools and the rules are identical to
 | `npm run typecheck`                        | `tsc --noEmit`.                                                                                                |
 | `npm run lint` / `npm run lint:fix`        | ESLint.                                                                                                        |
 | `npm run format` / `npm run format:check`  | Prettier.                                                                                                      |
-| `npm run verify`                           | Typecheck, lint, format check, coverage and the production build, in that order.                               |
+| `npm run verify`                           | Dependency audit, typecheck, lint, format check, coverage and the production build, in that order.             |
 | `npm run e2e`                              | The browser call in a real Chromium, with a synthetic microphone and the platform's socket played by the test. |
 | `node scripts/smoke-call.mjs <outDir>`     | One synthetic call against the live Voice Agent API. It reads the key from `.env.local` and spends credit.     |
 | `node scripts/e2e-call.mjs <url> <outDir>` | One whole call driven through the running app against the live API, ending in the graded chart. Spends credit. |

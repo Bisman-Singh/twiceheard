@@ -29,17 +29,22 @@ for f in "$DIR"/call.webm "$DIR"/call-audio.ogg \
 done
 
 # The opening frame is held while the first line is spoken, so the call begins in silence.
-LEAD_IN=15
-# Where the call's own audio starts inside the recording.
-CALL_STARTS_AT=4
-# The call, from the page at rest to a few seconds after it ends.
-CALL_TO=203
-# The chart, after the wait while the recording is heard a second time.
-CHART_FROM=222.3
-CHART_TO=250.3
+LEAD_IN=14
+# Where the call's own audio starts inside the recording. Measured, not guessed: the page
+# flips to "Connected. Speak normally." one frame after the session opens, and a scene
+# detect over the first seconds of the recording gives that frame.
+CALL_STARTS_AT=3.0
+# The call, from the page at rest to a few seconds after the page says the call has ended.
+CALL_TO=211.5
+# The chart, after the wait while the recording is heard a second time. The chart replacing
+# the call is the one large scene change in the recording, so
+#   ffmpeg -i call.webm -vf "select='gt(scene,0.05)',showinfo" -an -f null -
+# gives CHART_FROM exactly.
+CHART_FROM=230.28
+CHART_TO=258.3
 
 # Parenthesised on purpose. Without the brackets `ms "$LEAD_IN + $CALL_STARTS_AT"` evaluates
-# as 15 + 4*1000 and lays the whole call underneath the opening narration, which is the
+# as 14 + 3.0*1000 and lays the whole call underneath the opening narration, which is the
 # overlap this edit exists to avoid and which reading the command does not catch. Listen to
 # the first twenty seconds of anything this produces.
 ms() { python3 -c "print(int(($1) * 1000))"; }
@@ -51,12 +56,12 @@ CHART_AT=$(python3 -c "print($LEAD_IN + $CALL_TO)")
 at() { ms "$LEAD_IN + $CALL_STARTS_AT + $1"; }
 
 OPEN_MS=800
-READBACK_MS=$(at 30.1)      # after the first readback, before the caller answers
-SLIP_MS=$(at 42.4)          # while the agent asks for the date of birth
-DIGITS_MS=$(at 71.6)        # while the agent asks for a phone number
-DRUG_MS=$(at 102.2)         # while the agent asks about medications
-ALLERGIES_MS=$(at 130.3)    # while the agent asks about allergies
-SLOTS_MS=$(at 145.9)        # after the allergies readback
+READBACK_MS=$(at 31.5)      # after the first readback, before the caller answers
+SLIP_MS=$(at 46.0)          # after the agent asks for the date of birth
+DIGITS_MS=$(at 77.9)        # after the agent asks for a phone number
+DRUG_MS=$(at 109.2)         # after the agent asks about medications
+ALLERGIES_MS=$(at 139.7)    # after the agent asks about allergies
+SLOTS_MS=$(at 153.4)        # after the allergies readback
 SECOND_MS=$(ms "$CHART_AT - 6")     # as the call ends and the page says it is listening again
 CHART_MS=$(ms "$CHART_AT + 2.2")    # as the chart arrives
 CLOSE_MS=$(ms "$CHART_AT + 12")     # on the one rule the whole thing rests on

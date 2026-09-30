@@ -38,21 +38,28 @@ if (VARIANT !== "clean" && VARIANT !== "unanswered") {
   throw new Error("--variant must be clean or unanswered");
 }
 
-/** Each line, and the silence after it, in seconds. */
+/**
+ * Each line, and the silence after it, in seconds.
+ *
+ * A gap has to hold the agent's next question, its readback, and whatever a narrator
+ * says over the recording afterwards. The agent's replies vary by a second or so between
+ * runs, so the gaps where the demonstration is narrated carry about two seconds of slack;
+ * without it a line of narration runs into the caller's next answer.
+ */
 const SCRIPT = [
   ["I have had a fever and a sore throat for three days.", 11],
-  ["My name is Arjun Mehta.", 13],
-  ["Yes, that's right.", 11],
+  ["My name is Arjun Mehta.", 15],
+  ["Yes, that's right.", 13],
   ["The twelfth of March, nineteen ninety.", 14],
-  ["Yes, that's right.", 11],
+  ["Yes, that's right.", 12],
   ["It is nine eight one two three four five six seven eight.", 15],
-  ["Yes, that's right.", 11],
+  ["Yes, that's right.", 13],
   ["I take Metformin every day.", 14],
   // The answer to the medications readback, and the only line the two variants differ on.
   // In `unanswered` the caller says nothing here at all: the clip is dropped and only the
   // silence is kept, so nobody can argue about whether that was agreement.
   ["Yes, that's right.", 13],
-  ["No allergies.", 13],
+  ["No allergies.", 15],
   ["Yes, that's right.", 11],
   ["Tomorrow morning would suit me.", 14],
   ["Doctor Kapoor, please.", 13],

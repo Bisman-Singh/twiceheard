@@ -103,9 +103,9 @@ tests/evals`. Do not speed the terminal up beyond what stays readable.
 
 Say:
 
-> Four hundred and forty four tests, at one hundred percent statements, branches, functions and
-> lines. Twenty five scripted cases across live grading, the recording, the confidence thresholds,
-> the readback rule and the medication lookup. All twenty five pass. The harness found a real defect
+> Four hundred and seventy four tests, at one hundred percent statements, branches, functions and
+> lines. Twenty six scripted cases across live grading, the recording, the confidence thresholds,
+> the readback rule and the medication lookup. All twenty six pass. The harness found a real defect
 > before any of this: a yes given to one field could confirm the next one. It was fixed, and that case
 > is still in the list.
 
@@ -117,8 +117,8 @@ On screen: the repository's "what is not built yet" list, held still.
 
 Say:
 
-> Nothing is deployed and there is no number to dial yet. That is written down in the repository next
-> to everything else that is missing. What works, works for real.
+> It is deployed, and the phone line answers a real number. What is still missing is written down in
+> the repository next to everything else. What works, works for real.
 
 ## Which shots need what
 
@@ -135,7 +135,8 @@ Say:
 
 ## Things not to do in this video
 
-- Do not show a phone number on screen. There is not one yet.
+- Do not show the phone number on screen. It is given with the submission, not published, so that a
+  recording cannot hand it to anyone who finds the video later.
 - Do not show a real person's details. The clinic and everyone in it are fictional, and the caller is
   synthetic.
 - Do not cut the amber field out to make the chart look clean. It is the demonstration.

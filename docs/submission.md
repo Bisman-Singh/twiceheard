@@ -93,8 +93,8 @@ has to have been spoken, a yes that has to answer that readback and no other, a 
 of the same recording with per-word confidence, and a field that ends amber with its reason when the
 two hearings disagree. Every one of those is a rule in code with a test behind it, not a claim.
 
-Twiceheard does not have a dialable number either, and that is listed below as a gap. What it does
-have is the rest of that combination, built rather than described.
+Twiceheard answers a real number, given with this submission rather than printed in a public
+repository, and the same intake runs from the browser with no phone at all.
 
 Three things are unusual about the mechanism itself.
 
@@ -130,12 +130,12 @@ twin with the same contract, so the whole product runs end to end with no networ
 ## What was measured
 
 - `npm run verify` exits 0. It runs typecheck, lint, format check, the test suite with coverage, and
-  the production build. 444 tests pass, at 100% statements, 100% branches, 100% functions and 100%
+  the production build. 474 tests pass, at 100% statements, 100% branches, 100% functions and 100%
   lines over `app`, `components`, `lib`, `proxy.ts` and `next.config.ts`.
 - 27 further tests run in a real browser: the whole call with a synthetic microphone, a 360 pixel
   screen, a keyboard-only pass, and the dark colour scheme.
-- The evaluation harness holds 25 scripted cases across five categories: live, recording, confidence,
-  readback and medication. All 25 pass. Each case states the grade and the exact reason every field
+- The evaluation harness holds 26 scripted cases across five categories: live, recording, confidence,
+  readback and medication. All 26 pass. Each case states the grade and the exact reason every field
   must end with, so a change in wording fails the run instead of drifting past it.
 - Six whole calls were made against the live Voice Agent API, driven through the product's own
   endpoints by a synthetic caller using speech synthesis with an Indian English voice. The last one
@@ -223,8 +223,10 @@ Written plainly, because a judge should not have to find it out.
   Twiceheard does not check this, and a real deployment would have to solve it before taking calls.
 - **Known limits are written down rather than hidden.** The shared rate limiter fails open, because a
   clinic line that stops answering is worse than one that is briefly too generous. Without Redis every
-  store and every limit is per instance, which is right on a laptop and wrong on serverless. None of
-  the security posture has been exercised against the public internet, because nothing is public.
+  store and every limit is per instance, which is right on a laptop and wrong on serverless. What has
+  been exercised against the public internet is the slot claim, where two callers raced for the same
+  appointment and one was refused, and the per caller rate limit, which answered 429 on the sixth
+  request. The rest of the posture is argued from code and tests, not from an attempt on it.
 
 Callers to the demo are asked not to give real medical details, and the page says so beside the
 button.
