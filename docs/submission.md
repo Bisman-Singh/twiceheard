@@ -130,7 +130,7 @@ twin with the same contract, so the whole product runs end to end with no networ
 ## What was measured
 
 - `npm run verify` exits 0. It runs typecheck, lint, format check, the test suite with coverage, and
-  the production build. 474 tests pass, at 100% statements, 100% branches, 100% functions and 100%
+  the production build. 477 tests pass, at 100% statements, 100% branches, 100% functions and 100%
   lines over `app`, `components`, `lib`, `proxy.ts` and `next.config.ts`.
 - 27 further tests run in a real browser: the whole call with a synthetic microphone, a 360 pixel
   screen, a keyboard-only pass, and the dark colour scheme.

@@ -103,7 +103,7 @@ tests/evals`. Do not speed the terminal up beyond what stays readable.
 
 Say:
 
-> Four hundred and seventy four tests, at one hundred percent statements, branches, functions and
+> Four hundred and seventy seven tests, at one hundred percent statements, branches, functions and
 > lines. Twenty six scripted cases across live grading, the recording, the confidence thresholds,
 > the readback rule and the medication lookup. All twenty six pass. The harness found a real defect
 > before any of this: a yes given to one field could confirm the next one. It was fixed, and that case
