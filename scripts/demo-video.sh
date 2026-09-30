@@ -4,7 +4,7 @@
 # Inputs, all in the directory given as the first argument:
 #   call-a-clean.webm / call-a-audio.ogg          a call where every line comes out verified
 #   call-b-unanswered.webm / call-b-audio.ogg     a call where the caller never answers one readback
-#   line-1.wav, line-4.wav                        narration
+#   line-a.wav .. line-d.wav                      narration, one per beat
 #
 # Why two calls. One call can only show one outcome, and the product's claim needs both:
 # that a good call comes out clean and books the appointment, and that a call where nobody
@@ -29,12 +29,12 @@ set -euo pipefail
 DIR="${1:-demo}"
 OUT="${2:-$DIR/twiceheard-demo.mp4}"
 
-for f in "$DIR"/call-{a-clean,b-unanswered}.webm "$DIR"/call-{a,b}-audio.ogg "$DIR"/line-{1,4}.wav; do
+for f in "$DIR"/call-{a-clean,b-unanswered}.webm "$DIR"/call-{a,b}-audio.ogg "$DIR"/line-{a,b,c,d}.wav; do
   [ -f "$f" ] || { echo "missing: $f" >&2; exit 1; }
 done
 
 # The opening frame is held while the first line is spoken, so the call begins in silence.
-LEAD_IN=12
+LEAD_IN=14
 # Where the call's own audio starts inside each recording.
 CALL_STARTS_AT=4
 
@@ -45,7 +45,7 @@ CALL_STARTS_AT=4
 A_TALK_FROM=142
 A_TALK_TO=199
 A_CHART_FROM=222.3
-A_CHART_TO=237.5
+A_CHART_TO=238.3
 
 # Call B: the caller giving their medication, the agent reading it back, and the silence
 # where the answer should be. It starts on the caller's own words rather than in the gap
@@ -53,7 +53,7 @@ A_CHART_TO=237.5
 B_TALK_FROM=111
 B_TALK_TO=134
 B_CHART_FROM=227.8
-B_CHART_TO=244
+B_CHART_TO=241.8
 
 # Parenthesised on purpose. Without the brackets `ms "$LEAD_IN + $CALL_STARTS_AT"`
 # evaluates as 11 + 4*1000 and lays the whole call underneath the opening narration,
@@ -74,15 +74,18 @@ S4_AT=$(python3 -c "print($S3_AT + $B_TALK_LEN)")
 # In milliseconds. ffmpeg accepts a seconds suffix on adelay in principle and ignores it in
 # practice, which put a whole call underneath the opening narration and was only caught by
 # listening. Milliseconds are what this filter honours.
+# One line per beat: the claim, the clean chart, the second call, the flagged line.
 OPENING_MS=800
+CLEAN_CHART_MS=$(ms "$S2_AT + 1.2")
+SECOND_CALL_MS=$(ms "$S2_AT + 9.8")
+FLAGGED_CHART_MS=$(ms "$S4_AT + 1.2")
 A_AUDIO_MS=$(ms "$LEAD_IN")
 B_AUDIO_MS=$(ms "$S3_AT")
-SECOND_HEARING_MS=$(ms "$S2_AT + 1.2")
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "$DIR/call-a-clean.webm" -i "$DIR/call-b-unanswered.webm" \
   -i "$DIR/call-a-audio.ogg" -i "$DIR/call-b-audio.ogg" \
-  -i "$DIR/line-1.wav" -i "$DIR/line-4.wav" \
+  -i "$DIR/line-a.wav" -i "$DIR/line-b.wav" -i "$DIR/line-c.wav" -i "$DIR/line-d.wav" \
   -filter_complex "
     [0:v]trim=${A_TALK_FROM}:${A_TALK_TO},setpts=PTS-STARTPTS,
          tpad=start_mode=clone:start_duration=${LEAD_IN}[v1];
@@ -94,9 +97,11 @@ ffmpeg -hide_banner -loglevel error -y \
          adelay=${A_AUDIO_MS}|${A_AUDIO_MS},volume=0.95[beda];
     [3:a]atrim=$(python3 -c "print($B_TALK_FROM - $CALL_STARTS_AT)"):$(python3 -c "print($B_TALK_TO - $CALL_STARTS_AT)"),
          asetpts=PTS-STARTPTS,adelay=${B_AUDIO_MS}|${B_AUDIO_MS},volume=0.95[bedb];
-    [4:a]adelay=${OPENING_MS}|${OPENING_MS}[l1];
-    [5:a]adelay=${SECOND_HEARING_MS}|${SECOND_HEARING_MS}[l4];
-    [beda][bedb][l1][l4]amix=inputs=4:normalize=0:duration=longest,
+    [4:a]adelay=${OPENING_MS}|${OPENING_MS}[la];
+    [5:a]adelay=${CLEAN_CHART_MS}|${CLEAN_CHART_MS}[lb];
+    [6:a]adelay=${SECOND_CALL_MS}|${SECOND_CALL_MS}[lc];
+    [7:a]adelay=${FLAGGED_CHART_MS}|${FLAGGED_CHART_MS}[ld];
+    [beda][bedb][la][lb][lc][ld]amix=inputs=6:normalize=0:duration=longest,
          alimiter=limit=0.95[aout]
   " \
   -map "[vout]" -map "[aout]" \
