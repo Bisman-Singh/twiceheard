@@ -43,7 +43,7 @@ one that was measured, and the last slide says what is not there.
 
 ## What was measured
 
-- `npm run verify` exits 0. 482 tests, at 100% statements, branches, functions and lines over the
+- `npm run verify` exits 0. 483 tests, at 100% statements, branches, functions and lines over the
   application, components, library, proxy and config.
 - 26 scripted evaluation cases across live grading, the recording, the confidence thresholds, the
   readback rule and the medication lookup. All 26 pass.

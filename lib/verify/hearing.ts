@@ -429,24 +429,59 @@ function lowest(found: readonly Token[]): number {
 }
 
 /** The best stretch of an utterance that says every word in order. */
+/**
+ * A name spelled out, as the word it spells. The agent asks a caller to spell a name it
+ * got wrong, so "P R I Y A" has to be readable as "priya" or the very callers this
+ * product works hardest for come out unverified.
+ */
+function spelled(stream: Token[]): Token[] {
+  const out: Token[] = [];
+  let letters: Token[] = [];
+  const flush = (): void => {
+    if (letters.length >= 2) {
+      out.push({ token: letters.map((item) => item.token).join(""), confidence: lowest(letters) });
+    } else {
+      out.push(...letters);
+    }
+    letters = [];
+  };
+  for (const item of stream) {
+    if (item.token.length === 1 && /\p{L}/u.test(item.token)) {
+      letters.push(item);
+      continue;
+    }
+    flush();
+    out.push(item);
+  }
+  flush();
+  return out;
+}
+
+/**
+ * The name, as a run of words the caller actually said in that order.
+ *
+ * Read one utterance at a time this said a correct name was contradicted by the
+ * recording: a caller who gives "Priya" and then "Sharma", which is what happens when
+ * the agent asks for a surname or asks them to spell it, has no single utterance
+ * holding the whole name. "The recording suggests a different value" is a specific and
+ * false thing to print on a chart, so the run is looked for across the call's own
+ * order, and a spelled name is read as the word it spells.
+ */
 function verifySequence(wanted: string[], spoken: Token[][]): Verification {
   if (wanted.length === 0) return ABSENT;
+  // Per utterance, then joined. Flattened first, "P R I Y A" and "S H A R M A" in two
+  // turns ran together into one word that is neither name, which is the same squash the
+  // agent itself makes when a caller spells a whole name in one breath.
+  const stream = spoken.flatMap(spelled);
   let best: number | null = null;
-  let partial: Token[] = [];
-  for (const utterance of spoken) {
-    for (let start = 0; start < utterance.length; start += 1) {
-      const run = utterance.slice(start, start + wanted.length);
-      if (
-        run.length === wanted.length &&
-        run.every((item, index) => item.token === wanted[index])
-      ) {
-        best = Math.max(best ?? 0, lowest(run));
-      }
+  for (let start = 0; start + wanted.length <= stream.length; start += 1) {
+    const run = stream.slice(start, start + wanted.length);
+    if (run.every((item, index) => item.token === wanted[index])) {
+      best = Math.max(best ?? 0, lowest(run));
     }
-    const matched = utterance.filter((item) => wanted.includes(item.token));
-    if (matched.length > partial.length) partial = matched;
   }
   if (best !== null) return { hearing: "agrees", minConfidence: best };
+  const partial = stream.filter((item) => wanted.includes(item.token));
   return partial.length > 0 ? { hearing: "differs", minConfidence: lowest(partial) } : ABSENT;
 }
 

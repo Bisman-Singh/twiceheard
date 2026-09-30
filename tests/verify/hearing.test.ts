@@ -156,6 +156,29 @@ describe("verifyValue", () => {
   // time. Graded without the agent's side, one "no" to "have you been here before?"
   // came back agreeing that the patient takes no medication and has no allergy, at
   // 0.99, on the two entries this product says are the most dangerous to get wrong.
+  // The agent asks a caller to spell a name it got wrong, so the second hearing has to be
+  // able to read a spelled name. And a caller who answers "Priya" then "Sharma" has said
+  // their whole name: printing "the recording suggests a different value" over a correct
+  // name is a specific, false accusation, and worse than saying nothing.
+  it("hears a name given across two turns, and one that is spelled out", () => {
+    const whole = [said("my name is priya sharma")];
+    const twoTurns = [said("priya"), said("sharma")];
+    const spelledOut = [said("p r i y a"), said("s h a r m a")];
+    for (const call of [whole, twoTurns, spelledOut]) {
+      expect(verifyValue(FIELDS.full_name, "Priya Sharma", call)).toEqual({
+        hearing: "agrees",
+        minConfidence: 0.99,
+      });
+    }
+    // Still refuses a name the recording does not hold, and stays cautious out of order.
+    expect(verifyValue(FIELDS.full_name, "Priya Sharma", [said("my name is arjun mehta")])).toEqual(
+      { hearing: "absent", minConfidence: null },
+    );
+    expect(
+      verifyValue(FIELDS.full_name, "Priya Sharma", [said("sharma"), said("priya")])?.hearing,
+    ).toBe("differs");
+  });
+
   it("will not let a denial verify a list it was not asked about", () => {
     const call = [said("my name is priya sharma"), said("no"), said("yes that is right")];
     expect(verifyValue(FIELDS.allergies, [], call)?.hearing).toBe("absent");
