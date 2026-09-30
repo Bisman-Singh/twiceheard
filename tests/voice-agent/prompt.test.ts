@@ -151,7 +151,7 @@ describe("systemPrompt: rules the new instructions must not have disturbed", () 
   it("asks the caller to spell a name it got wrong, rather than to repeat it", () => {
     expect(prompt).toMatch(/says a name is wrong[^.]*ask them to spell it/i);
     expect(prompt).toMatch(/say it again only hears it the same way twice/i);
-    expect(prompt).toMatch(/spelled name back as a word, not as letters/i);
+    expect(prompt).toMatch(/one part at a time, the given name then the family name/i);
   });
 
   it("still expects English, Hindi or a mix, and answers in simple English", () => {
