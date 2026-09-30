@@ -51,8 +51,10 @@ test("@live a whole call, recorded, ending in the chart the clinic receives", as
   // The caller's audio is a fixed track, so the call takes as long as the track.
   const slip = page.getByRole("region", { name: "Intake slip" });
   await expect(slip).toContainText("Arjun Mehta", { timeout: 90_000 });
-  await expect(slip).toContainText("Date of birth", { timeout: 120_000 });
-  await expect(slip).toContainText("Allergies", { timeout: 180_000 });
+  // The captured values, not the field names. The slip now rules every field out before
+  // the call starts, so waiting on a label would pass on page load and prove nothing.
+  await expect(slip).toContainText("12 March 1990", { timeout: 120_000 });
+  await expect(slip).toContainText(/Allergies\s*none/i, { timeout: 180_000 });
   // The call is not finished until a time has been offered and taken: a chart with an
   // appointment on it is what a clinic actually receives, and the booking is the part
   // the caller came for.
