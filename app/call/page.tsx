@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CallPanel } from "@/components/call/call-panel";
+import { SayThis } from "@/components/call/say-this";
 import { DEMO_CLINIC } from "@/lib/clinic/config";
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default function CallPage() {
           appointment times. Every critical detail is read back to you before it is recorded.
         </p>
       </header>
+      <SayThis />
       <CallPanel clinicId={DEMO_CLINIC.id} clinicName={DEMO_CLINIC.name} />
     </article>
   );

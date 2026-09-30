@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { ForgetRecord } from "@/components/call/forget-record";
 import { useCallResult, type ResultState } from "@/components/call/use-call-result";
+import { FIELDS, FIELD_IDS, isFieldId, type FieldId } from "@/lib/intake/fields";
 import { spokenDate } from "@/lib/intake/readback";
 import { VerifiedChart } from "@/components/call/verified-chart";
 import { claimSession } from "@/lib/call/result-client";
@@ -23,15 +24,26 @@ import {
  * agent read a value back before the caller agrees to it.
  */
 
-const FIELD_LABELS: Record<string, string> = {
+/**
+ * Where the slip says it shorter than the intake does.
+ *
+ * The fields themselves come from the intake, so one added there appears here
+ * without this file changing. Only the wording of these three is the slip's
+ * own: a slip is read at a glance, and the graded chart lower down the same
+ * page carries the intake's longer labels, so two rows both reading "Current
+ * medications" on one screen would read as one row printed twice.
+ */
+const SHORT_LABELS: Partial<Record<FieldId, string>> = {
   full_name: "Name",
-  date_of_birth: "Date of birth",
   phone: "Phone",
-  reason_for_visit: "Reason for visit",
   medications: "Medications",
-  allergies: "Allergies",
-  preferred_time: "Preferred time",
 };
+
+/** A field the clinic added and the intake has no label for keeps its own name. */
+function slipLabel(field: string): string {
+  if (!isFieldId(field)) return field;
+  return SHORT_LABELS[field] ?? FIELDS[field].label;
+}
 
 const STATUS_WORDS: Record<CallField["status"], string> = {
   heard: "read back, waiting",
@@ -157,7 +169,10 @@ function CallControls({
         {label}
       </button>
       <p className="max-w-md text-sm text-[var(--muted)]">
-        A recorded demonstration line. Speak as a patient would, and do not give real medical
+        This needs a microphone, and the browser asks for one when you press the button. The line is
+        recorded: what you say is transcribed as you speak and again from the recording, and becomes
+        the chart at the foot of this page, which the clinic desk sees too. You can delete that
+        chart yourself once the call ends. Speak as a patient would, and give no real medical
         details.
       </p>
     </div>
@@ -213,7 +228,9 @@ function Transcript({
       >
         {lines.length === 0 && (
           <li className="text-[var(--muted)]">
-            {live ? "Waiting for the first words." : "Nothing said yet."}
+            {live
+              ? "Waiting for the first words."
+              : "Nothing said yet. Every line of the call is written here as it is said, each one marked Caller for you or Clinic for the agent."}
           </li>
         )}
         {lines.map((line) => (
@@ -232,24 +249,47 @@ function spoken(value: string): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? spokenDate(value) : value;
 }
 
+interface SlipRow {
+  field: string;
+  /** Empty until the call has saved something for this field. */
+  value: string;
+  /** Null while the field is still to be asked about. */
+  status: CallField["status"] | null;
+}
+
+/**
+ * Every field of the intake, in the order the agent collects them, each with
+ * whatever the call has for it so far.
+ *
+ * The slip is ruled out in full before the call starts, so the page says what
+ * is going to be collected instead of holding an empty box that says nothing.
+ */
+function slipRows(fields: readonly CallField[]): SlipRow[] {
+  const saved = new Map(fields.map((field) => [field.field, field]));
+  return [
+    ...FIELD_IDS.map((id): SlipRow => saved.get(id) ?? { field: id, value: "", status: null }),
+    // A field the clinic added is not in the intake's list, so it joins the end.
+    ...fields.filter((field) => !isFieldId(field.field)),
+  ];
+}
+
 function IntakeSlip({ fields, booking }: { fields: CallField[]; booking: string }) {
   return (
     <section aria-label="Intake slip">
       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Intake slip</h3>
-      {fields.length === 0 && (
-        <p className="border border-[var(--line)] p-3 text-sm text-[var(--muted)]">
-          Nothing captured yet.
-        </p>
-      )}
-      <dl className="border border-[var(--line)] p-3 text-sm empty:hidden">
-        {fields.map((field) => (
+      <dl className="border border-[var(--line)] px-3 py-1 text-sm">
+        {slipRows(fields).map((row) => (
           <div
-            key={field.field}
+            key={row.field}
             className="flex flex-wrap items-baseline gap-x-2 border-b border-dotted border-[var(--line)] py-1.5 last:border-b-0"
           >
-            <dt className="font-semibold">{FIELD_LABELS[field.field] ?? field.field}</dt>
-            <dd className="flex-1">{spoken(field.value)}</dd>
-            <dd className={`text-xs ${STATUS_INK[field.status]}`}>{STATUS_WORDS[field.status]}</dd>
+            <dt className="min-w-[5.5rem] font-semibold">{slipLabel(row.field)}</dt>
+            <dd className="min-w-0 flex-1">{row.value ? spoken(row.value) : "-"}</dd>
+            <dd
+              className={`text-xs ${row.status === null ? "text-[var(--muted)]" : STATUS_INK[row.status]}`}
+            >
+              {row.status === null ? "waiting" : STATUS_WORDS[row.status]}
+            </dd>
           </div>
         ))}
       </dl>

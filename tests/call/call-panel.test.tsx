@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import CallPage, { metadata } from "@/app/call/page";
 import { callRecord } from "@/tests/fixtures/record";
 import { CallPanel } from "@/components/call/call-panel";
+import { FIELD_IDS } from "@/lib/intake/fields";
 import type { CallResult } from "@/lib/call/result-client";
 import type { CallHandle, CallHandlers } from "@/lib/call/session-client";
 
@@ -52,14 +53,41 @@ const status = () => screen.getByRole("status").textContent ?? "";
 const slip = () => within(screen.getByRole("region", { name: "Intake slip" }));
 
 describe("call panel", () => {
-  it("starts idle, with the empty call and the empty slip said in words", async () => {
+  it("starts idle, and teaches the empty call rather than only reporting it", async () => {
     const { container } = panel();
     expect(status()).toContain("Not connected.");
     expect(button()).toHaveTextContent("Call the clinic");
     expect(button()).toBeEnabled();
-    expect(screen.getByText("Nothing said yet.")).toBeInTheDocument();
-    expect(slip().getByText("Nothing captured yet.")).toBeInTheDocument();
+    expect(screen.getByText(/^Nothing said yet\./)).toHaveTextContent(
+      "Every line of the call is written here as it is said, each one marked Caller for you or Clinic for the agent.",
+    );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("rules out every field of the intake before the call, each waiting with no value", () => {
+    panel();
+    const marked = slip();
+    for (const label of [
+      "Name",
+      "Date of birth",
+      "Phone",
+      "Reason for visit",
+      "Medications",
+      "Allergies",
+      "Preferred time",
+    ]) {
+      expect(marked.getByText(label)).toBeInTheDocument();
+    }
+    // One row per field the intake declares, so a field added there shows up here.
+    expect(marked.getAllByText("waiting")).toHaveLength(FIELD_IDS.length);
+    expect(marked.getAllByText("-")).toHaveLength(FIELD_IDS.length);
+  });
+
+  it("says the call needs a microphone, and what becomes of what is said", () => {
+    panel();
+    expect(screen.getByText(/This needs a microphone/)).toHaveTextContent(
+      "The line is recorded: what you say is transcribed as you speak and again from the recording, and becomes the chart at the foot of this page, which the clinic desk sees too. You can delete that chart yourself once the call ends.",
+    );
   });
 
   it("shows the conversation as it happens, with a partial line replaced by the final one", async () => {
@@ -105,6 +133,8 @@ describe("call panel", () => {
     });
     expect(slip().getAllByText("read back, waiting")).toHaveLength(3);
     expect(slip().getByText("left for the desk")).toBeInTheDocument();
+    // Three of the intake's own fields have answers now, so three fewer rows wait.
+    expect(slip().getAllByText("waiting")).toHaveLength(FIELD_IDS.length - 3);
     // A field the clinic added and the panel has no label for keeps its own name.
     expect(slip().getByText("insurer")).toBeInTheDocument();
     // A date reads as it was spoken, not as it is stored.
@@ -187,9 +217,25 @@ describe("call page", () => {
     const { container } = render(<CallPage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Call the demo clinic");
     expect(screen.getByText(/read back to you before it is recorded/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("intake line");
+    expect(screen.getByRole("heading", { level: 2, name: /intake line/ })).toBeInTheDocument();
     expect(metadata.title).toBe("Call the demo clinic");
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("gives four lines to read out, one of them Hinglish, for an invented patient", () => {
+    render(<CallPage />);
+    const script = within(screen.getByRole("region", { name: "Say this on the call" }));
+    expect(script.getAllByRole("listitem")).toHaveLength(4);
+    for (const line of [
+      "“My name is Priya Sharma, P-R-I-Y-A.”",
+      "“Date of birth fourteen March nineteen eighty-eight.”",
+      "“Main metformin leti hoon, paanch sau.”",
+      "“Kal subah agar slot hai.”",
+    ]) {
+      expect(script.getByText(line)).toBeInTheDocument();
+    }
+    expect(script.getByText(/Hinglish for/)).toBeInTheDocument();
+    expect(script.getByText(/invented patient/)).toBeInTheDocument();
   });
 });
 
