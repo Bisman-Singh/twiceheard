@@ -32,11 +32,11 @@ describe("clinic time", () => {
     expect(addDays("2026-09-30", 1)).toBe("2026-10-01");
     expect(spokenDay("2026-09-15")).toBe("Tuesday 15 September");
     expect([9 * 60 + 20, 12 * 60, 13 * 60, 17 * 60 + 40, 0].map(spokenTime)).toEqual([
-      "9:20 am",
+      "9:20 in the morning",
       "12 noon",
-      "1 pm",
-      "5:40 pm",
-      "12 am",
+      "1 in the afternoon",
+      "5:40 in the evening",
+      "12 in the morning",
     ]);
   });
 });
@@ -49,7 +49,7 @@ describe("openSlots", () => {
       "dr-iyer_20260914T0900",
       "dr-sen_20260914T0900",
     ]);
-    expect(slots[0]?.spoken).toBe("Monday 14 September at 9 am with Dr. Neha Kapoor");
+    expect(slots[0]?.spoken).toBe("Monday 14 September at 9 in the morning with Dr. Neha Kapoor");
   });
 
   it("keeps an hour's lead time on the same day", () => {
@@ -109,7 +109,7 @@ describe("describeSlotId", () => {
 describe("slotFromId", () => {
   it("accepts only times the clinic really offers", () => {
     expect(slotFromId(DEMO_CLINIC, "dr-iyer_20260915T0940", mondayMorning)?.spoken).toBe(
-      "Tuesday 15 September at 9:40 am with Dr. Rahul Iyer",
+      "Tuesday 15 September at 9:40 in the morning with Dr. Rahul Iyer",
     );
     const rejected = [
       "dr-iyer_20260915T0945",

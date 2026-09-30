@@ -85,8 +85,10 @@ describe("twilioMessenger", () => {
 
 describe("bookingMessage", () => {
   it("names the clinic and the time in one sentence a caller can act on", () => {
-    expect(bookingMessage("Sunrise Family Clinic", "Wednesday 30 September at 9:40 am")).toBe(
-      "Sunrise Family Clinic: you are booked for Wednesday 30 September at 9:40 am. Please arrive 10 minutes early. Call the clinic if you need to change it.",
+    expect(
+      bookingMessage("Sunrise Family Clinic", "Wednesday 30 September at 9:40 in the morning"),
+    ).toBe(
+      "Sunrise Family Clinic: you are booked for Wednesday 30 September at 9:40 in the morning. Please arrive 10 minutes early. Call the clinic if you need to change it.",
     );
   });
 });

@@ -42,8 +42,8 @@ describe("start_intake", () => {
       ok: true,
       intake_id: "K7F2Q9",
       today: "Monday 14 September 2026",
-      time_now: "8 am",
-      hours: "Monday to Saturday, 9 am to 6 pm",
+      time_now: "8 in the morning",
+      hours: "Monday to Saturday, 9 in the morning to 6 in the evening",
     });
     expect(result.doctors).toHaveLength(3);
     expect(await d.store.get("K7F2Q9")).not.toBeNull();
@@ -165,11 +165,11 @@ describe("find_slots", () => {
       },
       {
         slot_id: "dr-iyer_20260914T1220",
-        time: "Monday 14 September at 12:20 pm with Dr. Rahul Iyer",
+        time: "Monday 14 September at 12:20 in the afternoon with Dr. Rahul Iyer",
       },
       {
         slot_id: "dr-iyer_20260914T1240",
-        time: "Monday 14 September at 12:40 pm with Dr. Rahul Iyer",
+        time: "Monday 14 September at 12:40 in the afternoon with Dr. Rahul Iyer",
       },
     ]);
   });
@@ -238,12 +238,12 @@ describe("book_appointment", () => {
     );
     expect(result).toEqual({
       ok: true,
-      say: "You're booked for Tuesday 15 September at 9:40 am with Dr. Rahul Iyer. A text message is on its way.",
+      say: "You're booked for Tuesday 15 September at 9:40 in the morning with Dr. Rahul Iyer. A text message is on its way.",
     });
     expect(d.sms.sent).toEqual([
       {
         to: "+919876543210",
-        body: "Sunrise Family Clinic: you are booked for Tuesday 15 September at 9:40 am with Dr. Rahul Iyer. Please arrive 10 minutes early. Call the clinic if you need to change it.",
+        body: "Sunrise Family Clinic: you are booked for Tuesday 15 September at 9:40 in the morning with Dr. Rahul Iyer. Please arrive 10 minutes early. Call the clinic if you need to change it.",
       },
     ]);
     const again = await runTool(
@@ -252,7 +252,7 @@ describe("book_appointment", () => {
       d,
     );
     expect(again.say).toBe(
-      "You're booked for Tuesday 15 September at 9:40 am with Dr. Rahul Iyer.",
+      "You're booked for Tuesday 15 September at 9:40 in the morning with Dr. Rahul Iyer.",
     );
     expect(
       (await runTool("book_appointment", { intake_id: id, slot_id: "dr-sen_20260915T1000" }, d))
@@ -368,7 +368,7 @@ describe("find_slots says why there is nothing, not just that there is nothing",
 
   it("names the day the clinic is shut, so a Sunday question gets a Sunday answer", async () => {
     expect(await noteFor(deps(), { part_of_day: "any", date: "2026-09-20" })).toBe(
-      "The clinic is closed on Sunday; it is open Monday to Saturday, 9 am to 6 pm. Offer another day.",
+      "The clinic is closed on Sunday; it is open Monday to Saturday, 9 in the morning to 6 in the evening. Offer another day.",
     );
   });
 
@@ -388,12 +388,12 @@ describe("find_slots says why there is nothing, not just that there is nothing",
     expect(
       await noteFor(deps({ clinic: hours({ close: "17:00" }) }), { part_of_day: "evening" }),
     ).toBe(
-      "The clinic has no evening appointments at all; it is open Monday to Saturday, 9 am to 5 pm. Offer another time of day.",
+      "The clinic has no evening appointments at all; it is open Monday to Saturday, 9 in the morning to 5 in the evening. Offer another time of day.",
     );
     expect(
       await noteFor(deps({ clinic: hours({ open: "13:00" }) }), { part_of_day: "morning" }),
     ).toBe(
-      "The clinic has no morning appointments at all; it is open Monday to Saturday, 1 pm to 6 pm. Offer another time of day.",
+      "The clinic has no morning appointments at all; it is open Monday to Saturday, 1 in the afternoon to 6 in the evening. Offer another time of day.",
     );
   });
 
@@ -647,8 +647,12 @@ describe("openingHours", () => {
   it("speaks consecutive days as ranges and lone days on their own", () => {
     const hours = (days: number[]) =>
       openingHours({ ...DEMO_CLINIC, hours: { ...DEMO_CLINIC.hours, days } });
-    expect(hours([1, 2, 3, 5, 6])).toBe("Monday to Wednesday and Friday to Saturday, 9 am to 6 pm");
-    expect(hours([0])).toBe("Sunday, 9 am to 6 pm");
-    expect(hours([6, 1, 1, 3])).toBe("Monday and Wednesday and Saturday, 9 am to 6 pm");
+    expect(hours([1, 2, 3, 5, 6])).toBe(
+      "Monday to Wednesday and Friday to Saturday, 9 in the morning to 6 in the evening",
+    );
+    expect(hours([0])).toBe("Sunday, 9 in the morning to 6 in the evening");
+    expect(hours([6, 1, 1, 3])).toBe(
+      "Monday and Wednesday and Saturday, 9 in the morning to 6 in the evening",
+    );
   });
 });

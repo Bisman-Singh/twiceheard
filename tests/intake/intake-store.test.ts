@@ -55,8 +55,8 @@ describe("sms", () => {
     const messenger = recordingMessenger();
     expect(await messenger.send("+919876543210", "hi")).toEqual({ ok: true });
     expect(messenger.sent).toEqual([{ to: "+919876543210", body: "hi" }]);
-    expect(bookingMessage("Sunrise Family Clinic", "Tuesday 15 September at 9:40 am")).toMatch(
-      /^Sunrise Family Clinic: you are booked for Tuesday/,
-    );
+    expect(
+      bookingMessage("Sunrise Family Clinic", "Tuesday 15 September at 9:40 in the morning"),
+    ).toMatch(/^Sunrise Family Clinic: you are booked for Tuesday/);
   });
 });

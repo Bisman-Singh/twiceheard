@@ -98,13 +98,22 @@ export function spokenDay(date: string): string {
   return `${WEEKDAYS[weekday(date)]} ${Number(date.slice(8, 10))} ${MONTHS[Number(date.slice(5, 7)) - 1]}`;
 }
 
-/** "9:20 am", "12 noon", "5:40 pm". */
+/**
+ * "9:20 in the morning", "12 noon", "5:40 in the evening".
+ *
+ * Said in words rather than as "am" and "pm" because a speech engine reads "9 am"
+ * as the word "am", so a caller hears something between "nine am" and "nine I am".
+ * The part of the day cannot be mispronounced, and it is how a person would say a
+ * time out loud anyway. The same string is shown on the slip and the chart.
+ */
 export function spokenTime(minute: number): string {
   if (minute === 12 * 60) return "12 noon";
   const hour = Math.floor(minute / 60) % 12 || 12;
   const mins = minute % 60;
-  const suffix = minute < 12 * 60 ? "am" : "pm";
-  return mins === 0 ? `${hour} ${suffix}` : `${hour}:${String(mins).padStart(2, "0")} ${suffix}`;
+  const clock = mins === 0 ? `${hour}` : `${hour}:${String(mins).padStart(2, "0")}`;
+  const partOfDay =
+    minute < 12 * 60 ? "in the morning" : minute < 17 * 60 ? "in the afternoon" : "in the evening";
+  return `${clock} ${partOfDay}`;
 }
 
 export function slotId(doctorId: string, date: string, minute: number): string {

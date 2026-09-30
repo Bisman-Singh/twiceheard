@@ -295,7 +295,7 @@ describe("processSession", () => {
     const record = await processSession("sess_fixture", d);
     expect(record?.booking).toEqual({
       slotId: "dr-iyer_20260915T0940",
-      spoken: "Tuesday 15 September at 9:40 am with Dr. Rahul Iyer",
+      spoken: "Tuesday 15 September at 9:40 in the morning with Dr. Rahul Iyer",
     });
     expect(record?.escalation).toEqual({ reason: "Wants a person", urgent: true });
     expect(record?.tools).toEqual({ calls: 6, failures: 2, p50Ms: 80 });
@@ -382,7 +382,7 @@ describe("records", () => {
 
   it("describes a slot id after the fact without checking it is still open", () => {
     expect(describeSlotId(DEMO_CLINIC, "dr-iyer_20200101T0940")?.spoken).toBe(
-      "Wednesday 1 January at 9:40 am with Dr. Rahul Iyer",
+      "Wednesday 1 January at 9:40 in the morning with Dr. Rahul Iyer",
     );
     expect(describeSlotId(DEMO_CLINIC, "dr-who_20260915T0940")).toBeNull();
     expect(describeSlotId(DEMO_CLINIC, "garbage")).toBeNull();
