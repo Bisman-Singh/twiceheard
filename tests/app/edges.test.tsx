@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ErrorPage from "@/app/error";
 import { metadata } from "@/app/layout";
 import NotFound from "@/app/not-found";
+import { DESTINATIONS } from "@/components/site/destinations";
 
 /** Carries the two things that must never be shown: a message and a digest. */
 const thrown = () =>
@@ -26,6 +27,26 @@ describe("shared metadata", () => {
     });
     expect(metadata.openGraph?.description).toBe(metadata.description);
   });
+
+  it("asks for a large card, so the preview carries the cover image", () => {
+    expect(metadata.twitter).toMatchObject({ card: "summary_large_image" });
+  });
+
+  // The image beside the layout is resolved against this base. Get it wrong and the
+  // card silently loses its picture, which is only visible in someone else's chat.
+  it("advertises the host this deployment answers on, and a local one when there is none", async () => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "twiceheard.example");
+    const deployed = await import("@/app/layout");
+    expect(String(deployed.metadata.metadataBase)).toBe("https://twiceheard.example/");
+
+    vi.resetModules();
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "");
+    const local = await import("@/app/layout");
+    expect(String(local.metadata.metadataBase)).toBe("http://localhost:3000/");
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
 });
 
 describe("not found page", () => {
@@ -37,8 +58,19 @@ describe("not found page", () => {
       "href",
       "/call",
     );
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Clinic desk" })).toHaveAttribute("href", "/desk");
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("lists exactly the pages the nav offers, so the two cannot drift apart", () => {
+    render(<NotFound />);
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(
+      DESTINATIONS.map((destination) => destination.href),
+    );
+    for (const destination of DESTINATIONS) {
+      expect(screen.getByText(destination.blurb)).toBeInTheDocument();
+    }
   });
 });
 
